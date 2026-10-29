@@ -3,11 +3,11 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#21140e">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Metode Pembayaran - BrewNest Coffee' }}</title>
     <link rel="icon" type="image/jpeg" href="{{ asset('kopi.jpeg') }}">
-
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +18,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            future: {
+                hoverOnlyWhenSupported: true
+            },
             theme: {
                 extend: {
                     colors: {
@@ -70,6 +73,73 @@
             animation-delay: .35s;
         }
 
+        /* ---------- Kartu metode pembayaran ---------- */
+        .pay-opt {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            cursor: pointer;
+            padding: 14px 16px;
+            background: #fff;
+            border: 1px solid #e7e5e4;
+            border-radius: 14px;
+            transition: border-color .2s, background-color .2s, box-shadow .2s, transform .2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        @media (hover: hover) {
+            .pay-opt:hover {
+                border-color: #d7a66c;
+                box-shadow: 0 8px 20px -12px rgba(117, 74, 48, .45);
+                transform: translateY(-1px);
+            }
+        }
+
+        .pay-opt:has(input:checked) {
+            border-color: #754a30;
+            background: #fbf3e6;
+            box-shadow: 0 10px 24px -14px rgba(117, 74, 48, .55);
+        }
+
+        .pay-opt:has(input:focus-visible) {
+            outline: 2px solid #d7a66c;
+            outline-offset: 2px;
+        }
+
+        .pay-ico {
+            display: grid;
+            place-items: center;
+            flex: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: #f8f0e3;
+            font-size: 22px;
+        }
+
+        .bank-opt {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 12px;
+            background: #fff;
+            border: 1px solid #e7e5e4;
+            border-radius: 10px;
+            transition: border-color .2s, background-color .2s;
+        }
+
+        .bank-opt:has(input:checked) {
+            border-color: #754a30;
+            background: #fbf3e6;
+        }
+
+        .bank-opt:has(input:focus-visible) {
+            outline: 2px solid #d7a66c;
+            outline-offset: 2px;
+        }
+
         /* ---------- Panel detail membuka halus ---------- */
         .collapse-panel {
             display: grid;
@@ -95,10 +165,7 @@
                 opacity: 0;
             }
 
-            15% {
-                opacity: 1;
-            }
-
+            15%,
             85% {
                 opacity: 1;
             }
@@ -119,10 +186,10 @@
             animation: scan 2.6s ease-in-out infinite;
         }
 
-        /* ---------- Tanda centang pada metode terpilih ---------- */
+        /* ---------- Tanda pilihan ---------- */
         .radio-dot {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             flex-shrink: 0;
             border-radius: 9999px;
             border: 2px solid #d6d3d1;
@@ -185,7 +252,7 @@
             animation: pop .4s ease;
         }
 
-        /* ---------- Tombol: kopi "mengisi" saat hover ---------- */
+        /* ---------- Tombol: warna "mengisi" saat hover ---------- */
         .btn-brew {
             position: relative;
             overflow: hidden;
@@ -196,15 +263,20 @@
             content: "";
             position: absolute;
             inset: 0;
-            background: #21140e;
+            background: var(--fill, #f8f0e3);
             transform: translateY(101%);
             transition: transform .45s cubic-bezier(.2, .7, .2, 1);
             z-index: -1;
         }
 
-        .btn-brew:hover::before,
         .btn-brew:focus-visible::before {
             transform: translateY(0);
+        }
+
+        @media (hover: hover) {
+            .btn-brew:hover::before {
+                transform: translateY(0);
+            }
         }
 
         .btn-brew:active {
@@ -220,8 +292,8 @@
         .spinner {
             width: 16px;
             height: 16px;
-            border: 2px solid rgba(255, 255, 255, .35);
-            border-top-color: #fff;
+            border: 2px solid rgba(33, 20, 14, .25);
+            border-top-color: #21140e;
             border-radius: 50%;
             animation: spin .7s linear infinite;
         }
@@ -279,57 +351,66 @@
     </style>
 </head>
 
-<body class="min-h-screen bg-cream/60 font-sans text-coffee antialiased">
+<body
+    class="min-h-screen bg-cream bg-[radial-gradient(50rem_26rem_at_100%_0%,rgba(215,166,108,.2),transparent_60%)] pb-28 font-sans text-coffee antialiased md:pb-0">
 
     <!-- Header -->
-    <header class="sticky top-0 z-20 bg-coffee py-4 px-6 text-white shadow-lg shadow-coffee/20">
-        <div class="mx-auto flex max-w-5xl items-center justify-between">
-            <a href="{{ url('/') }}" class="flex items-center gap-2 font-display text-xl font-bold">
-                <span>☕</span> BrewNest Coffee &amp; Eatery
+    <header
+        class="sticky top-0 z-20 border-b border-caramel/30 bg-coffee px-4 py-3.5 text-white shadow-lg shadow-coffee/20 sm:px-6 sm:py-4">
+        <div class="mx-auto flex max-w-5xl items-center justify-between gap-3">
+            <a href="{{ url('/') }}"
+                class="flex min-w-0 items-center gap-2 font-display text-lg font-bold sm:text-xl">
+                <span aria-hidden="true">☕</span>
+                <span class="truncate">BrewNest<span class="hidden sm:inline"> Coffee &amp; Eatery</span></span>
             </a>
             <a href="{{ url('/') }}"
-                class="group inline-flex items-center gap-1.5 rounded text-xs text-amber-200 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel">
-                <span class="transition-transform group-hover:-translate-x-1">←</span> Lanjut belanja
+                class="group inline-flex flex-none items-center gap-1.5 rounded px-1 py-2 text-xs text-amber-200 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel">
+                <span class="transition-transform group-hover:-translate-x-1" aria-hidden="true">←</span> Lanjut
+                belanja
             </a>
         </div>
     </header>
 
-    <main class="mx-auto max-w-5xl px-4 py-10">
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
 
-        <!-- Langkah checkout (urutan nyata: keranjang → bayar → selesai) -->
-        <ol class="rise d1 mb-8 flex items-center gap-3 text-xs font-semibold" aria-label="Langkah pemesanan">
-            <li class="flex items-center gap-2 text-brown">
-                <span class="grid h-6 w-6 place-items-center rounded-full bg-brown text-white">✓</span> Keranjang
+        <!-- Langkah checkout (keranjang → bayar → selesai) -->
+        <ol class="rise d1 mb-6 flex items-center text-xs font-semibold sm:mb-8" aria-label="Langkah pemesanan">
+            <li class="flex items-center gap-1.5 text-brown sm:gap-2">
+                <span class="grid h-6 w-6 place-items-center rounded-full bg-brown text-white"
+                    aria-hidden="true">✓</span>
+                Keranjang
             </li>
-            <span class="h-px w-8 bg-brown/40"></span>
-            <li class="flex items-center gap-2" aria-current="step">
+            <li class="mx-2 h-px flex-1 bg-brown/40 sm:mx-3" aria-hidden="true"></li>
+            <li class="flex items-center gap-1.5 sm:gap-2" aria-current="step">
                 <span
                     class="grid h-6 w-6 place-items-center rounded-full bg-coffee text-white ring-4 ring-caramel/40">2</span>
                 Pembayaran
             </li>
-            <span class="h-px w-8 bg-stone-300"></span>
-            <li class="flex items-center gap-2 text-stone-400">
-                <span class="grid h-6 w-6 place-items-center rounded-full border border-stone-300">3</span> Selesai
+            <li class="mx-2 h-px flex-1 bg-stone-300 sm:mx-3" aria-hidden="true"></li>
+            <li class="flex items-center gap-1.5 text-stone-400 sm:gap-2">
+                <span class="grid h-6 w-6 place-items-center rounded-full border border-stone-300"
+                    aria-hidden="true">3</span>
+                Selesai
             </li>
         </ol>
 
-        <h1 class="rise d1 mb-8 font-display text-3xl font-bold">Informasi pembayaran</h1>
+        <h1 class="rise d1 mb-6 font-display text-2xl font-bold sm:mb-8 sm:text-3xl">Informasi pembayaran</h1>
 
-        <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
 
             <!-- Pilih Metode Pembayaran -->
             <div class="space-y-5 md:col-span-2">
-                <div class="rise d2 space-y-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+                <div class="rise d2 space-y-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
                     <h2 class="text-sm font-bold text-stone-700">Pilih metode pembayaran</h2>
 
                     <!-- Tunai -->
-                    <label
-                        class="flex cursor-pointer items-center justify-between rounded-xl border border-stone-200 p-4 transition hover:-translate-y-0.5 hover:border-caramel hover:shadow-md has-[:checked]:border-brown has-[:checked]:bg-amber-50/60 has-[:checked]:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-caramel">
-                        <div class="flex items-center gap-3">
-                            <span class="text-2xl">💵</span>
-                            <div>
+                    <label class="pay-opt">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <span class="pay-ico" aria-hidden="true">💵</span>
+                            <div class="min-w-0">
                                 <p class="text-sm font-bold">Tunai (Cash)</p>
-                                <p class="text-xs text-stone-500">Bayar langsung saat transaksi di kasir/meja.</p>
+                                <p class="text-xs leading-snug text-stone-500">Bayar langsung saat transaksi di
+                                    kasir/meja.</p>
                             </div>
                         </div>
                         <input type="radio" name="payment_method" value="Tunai" checked class="sr-only"
@@ -338,14 +419,13 @@
                     </label>
 
                     <!-- QRIS -->
-                    <label
-                        class="flex cursor-pointer items-center justify-between rounded-xl border border-stone-200 p-4 transition hover:-translate-y-0.5 hover:border-caramel hover:shadow-md has-[:checked]:border-brown has-[:checked]:bg-amber-50/60 has-[:checked]:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-caramel">
-                        <div class="flex items-center gap-3">
-                            <span class="text-2xl">📱</span>
-                            <div>
+                    <label class="pay-opt">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <span class="pay-ico" aria-hidden="true">📱</span>
+                            <div class="min-w-0">
                                 <p class="text-sm font-bold">QRIS</p>
-                                <p class="text-xs text-stone-500">Scan QR untuk m-banking / e-wallet (GoPay, OVO, Dana,
-                                    dll).</p>
+                                <p class="text-xs leading-snug text-stone-500">Scan QR untuk m-banking / e-wallet
+                                    (GoPay, OVO, Dana, dll).</p>
                             </div>
                         </div>
                         <input type="radio" name="payment_method" value="QRIS" class="sr-only"
@@ -359,13 +439,13 @@
                             <div class="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4 text-center">
                                 <p class="text-xs font-bold text-stone-700">Scan QR code di bawah dengan aplikasi
                                     pembayaranmu:</p>
-                                <div class="relative inline-block rounded-xl border bg-white p-2 shadow-sm">
+                                <div class="relative inline-block max-w-full rounded-xl border bg-white p-2 shadow-sm">
                                     <img src="{{ asset('uploads/menus/qr.jpeg') }}" alt="QRIS Code"
-                                        class="mx-auto h-48 w-48 object-contain"
-                                        onerror="this.onerror=null; this.classList.add('hidden'); document.getElementById('qrisFallback').classList.remove('hidden'); document.getElementById('scanLine').classList.add('hidden');">
+                                        class="mx-auto h-52 w-52 max-w-full object-contain"
+                                        onerror="this.onerror=null; this.classList.add('hidden'); document.getElementById('qrisFallback').classList.remove('hidden'); document.getElementById('qrisFallback').classList.add('flex'); document.getElementById('scanLine').classList.add('hidden');">
                                     <div id="qrisFallback"
-                                        class="hidden flex h-48 w-48 items-center justify-center text-xs italic text-stone-400">
-                                        QR belum tersedia.<br>Silakan minta kasir.
+                                        class="hidden h-52 w-52 max-w-full items-center justify-center text-xs italic text-stone-400">
+                                        <span>QR belum tersedia.<br>Silakan minta kasir.</span>
                                     </div>
                                     <span id="scanLine" class="scan-line" aria-hidden="true"></span>
                                 </div>
@@ -376,13 +456,12 @@
                     </div>
 
                     <!-- Debit / Kredit -->
-                    <label
-                        class="flex cursor-pointer items-center justify-between rounded-xl border border-stone-200 p-4 transition hover:-translate-y-0.5 hover:border-caramel hover:shadow-md has-[:checked]:border-brown has-[:checked]:bg-amber-50/60 has-[:checked]:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-caramel">
-                        <div class="flex items-center gap-3">
-                            <span class="text-2xl">💳</span>
-                            <div>
+                    <label class="pay-opt">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <span class="pay-ico" aria-hidden="true">💳</span>
+                            <div class="min-w-0">
                                 <p class="text-sm font-bold">Debit / Kredit</p>
-                                <p class="text-xs text-stone-500">Gesek atau tap kartu di mesin EDC.</p>
+                                <p class="text-xs leading-snug text-stone-500">Gesek atau tap kartu di mesin EDC.</p>
                             </div>
                         </div>
                         <input type="radio" name="payment_method" value="Debit / Kredit" class="sr-only"
@@ -408,48 +487,65 @@
                     </div>
                 </div>
 
-                <div class="rise d3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+                <div class="rise d3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
                     <label for="orderNotes" class="mb-2 block text-sm font-bold text-stone-700">Catatan pesanan
                         (opsional)</label>
                     <textarea id="orderNotes" rows="2" maxlength="500" placeholder="Contoh: tanpa gula, extra shot, es sedikit..."
-                        class="w-full rounded-xl border border-stone-200 p-3 text-sm outline-none transition placeholder:text-stone-400 focus:border-brown focus:ring-2 focus:ring-caramel/50"></textarea>
+                        class="w-full resize-none rounded-xl border border-stone-200 p-3 text-base outline-none transition placeholder:text-stone-400 focus:border-brown focus:ring-2 focus:ring-caramel/50 sm:text-sm"></textarea>
                 </div>
             </div>
 
             <!-- Ringkasan -->
             <aside
-                class="rise d4 h-fit space-y-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm md:sticky md:top-24">
-                <h3 class="border-b border-stone-100 pb-3 font-display text-lg font-bold">Ringkasan pesanan</h3>
+                class="rise d4 h-fit space-y-4 rounded-2xl bg-coffee p-5 text-cream shadow-xl shadow-coffee/20 ring-1 ring-caramel/20 sm:p-6 md:sticky md:top-24">
+                <h3 class="border-b border-white/10 pb-3 font-display text-lg font-bold">Ringkasan pesanan</h3>
 
                 <div id="checkoutSummaryList" class="max-h-52 space-y-2.5 overflow-y-auto pr-1 text-sm"></div>
 
-                <div class="space-y-1.5 border-t border-dashed border-stone-300 pt-3 text-sm">
-                    <div class="flex justify-between text-stone-500">
+                <div class="space-y-1.5 border-t border-dashed border-white/20 pt-3 text-sm">
+                    <div class="flex justify-between text-cream/70">
                         <span>Subtotal</span>
                         <span id="summarySubtotal">Rp 0</span>
                     </div>
-                    <div class="flex justify-between text-stone-500">
+                    <div class="flex justify-between text-cream/70">
                         <span>Pajak (11%)</span>
                         <span id="summaryTax">Rp 0</span>
                     </div>
-                    <div
-                        class="flex items-baseline justify-between border-t border-stone-200 pt-3 font-extrabold text-brown">
-                        <span class="text-sm">Total pembayaran</span>
-                        <span id="summaryTotal" class="origin-right text-xl">Rp 0</span>
+                    <div class="flex items-baseline justify-between border-t border-white/10 pt-3">
+                        <span class="text-sm font-bold">Total pembayaran</span>
+                        <span id="summaryTotal" class="origin-right font-display text-2xl font-bold text-caramel">Rp
+                            0</span>
                     </div>
                 </div>
 
-                <button id="payButton" onclick="submitOrder()"
-                    class="btn-brew flex w-full items-center justify-center gap-2 rounded-xl bg-brown py-3.5 text-sm font-bold text-white shadow-lg shadow-brown/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-80">
-                    <span id="payLabel">Bayar sekarang</span>
+                <!-- Tombol bayar versi desktop (di HP pakai bar bawah) -->
+                <button data-pay-btn onclick="submitOrder()"
+                    class="btn-brew hidden w-full items-center justify-center gap-2 rounded-xl bg-caramel py-3.5 text-sm font-bold text-coffee shadow-lg shadow-black/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream focus-visible:ring-offset-2 focus-visible:ring-offset-coffee disabled:cursor-not-allowed disabled:opacity-80 md:flex">
+                    <span data-pay-label>Bayar sekarang</span>
                 </button>
             </aside>
         </div>
     </main>
 
+    <!-- Bar bayar khusus HP: total + tombol selalu terlihat -->
+    <div class="fixed inset-x-0 bottom-0 z-30 border-t border-caramel/30 bg-coffee/95 px-4 pt-3 backdrop-blur md:hidden"
+        style="padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px));">
+        <div class="mx-auto flex max-w-5xl items-center gap-4">
+            <div class="min-w-0">
+                <p class="text-[11px] text-cream/60">Total pembayaran</p>
+                <p id="summaryTotalBar" class="origin-left font-display text-xl font-bold leading-tight text-caramel">
+                    Rp 0</p>
+            </div>
+            <button data-pay-btn onclick="submitOrder()"
+                class="btn-brew flex flex-1 items-center justify-center gap-2 rounded-xl bg-caramel py-3.5 text-sm font-bold text-coffee shadow-lg shadow-black/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream focus-visible:ring-offset-2 focus-visible:ring-offset-coffee disabled:cursor-not-allowed disabled:opacity-80">
+                <span data-pay-label>Bayar sekarang</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" role="status" aria-live="polite"
-        class="toast fixed bottom-6 left-1/2 z-50 max-w-[90%] rounded-xl bg-coffee px-5 py-3 text-sm text-white shadow-2xl">
+        class="toast fixed bottom-28 left-1/2 z-50 max-w-[90%] rounded-xl bg-coffee px-5 py-3 text-sm text-white shadow-2xl ring-1 ring-caramel/30 md:bottom-6">
     </div>
 
     <script>
@@ -502,8 +598,8 @@
                 container.innerHTML = `
                     <div class="py-6 text-center">
                         <div class="mb-2 text-3xl">🫗</div>
-                        <p class="text-stone-500">Keranjang masih kosong.</p>
-                        <a href="{{ url('/') }}" class="mt-1 inline-block font-bold text-brown hover:underline">Pilih menu dulu</a>
+                        <p class="text-cream/70">Keranjang masih kosong.</p>
+                        <a href="{{ url('/') }}" class="mt-1 inline-block font-bold text-caramel hover:underline">Pilih menu dulu</a>
                     </div>`;
                 return;
             }
@@ -514,7 +610,7 @@
                 subtotal += totalItem;
                 html += `
                     <div class="item-in flex justify-between gap-3" style="animation-delay:${0.45 + i * 0.07}s">
-                        <span>${escapeHtml(item.name)} <span class="text-stone-400">×${item.qty}</span></span>
+                        <span>${escapeHtml(item.name)} <span class="text-cream/50">×${item.qty}</span></span>
                         <span class="font-bold whitespace-nowrap">${rupiah(totalItem)}</span>
                     </div>`;
             });
@@ -526,6 +622,7 @@
             document.getElementById('summarySubtotal').textContent = rupiah(subtotal);
             document.getElementById('summaryTax').textContent = rupiah(tax);
             countUp(document.getElementById('summaryTotal'), grandTotal);
+            countUp(document.getElementById('summaryTotalBar'), grandTotal);
         }
 
         renderCheckoutSummary();
@@ -572,8 +669,8 @@
         function renderBankOptions() {
             const wrap = document.getElementById('bankOptions');
             wrap.innerHTML = banks.map((b, i) => `
-                <label class="flex cursor-pointer items-center gap-2 rounded-lg border bg-white p-3 transition hover:border-caramel has-[:checked]:border-brown has-[:checked]:bg-amber-50/60 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-caramel">
-                    <input type="radio" name="bank_option" value="${b.value}" class="sr-only"
+                <label class="bank-opt">
+                    <input type="radio" name="bank_option" value="${escapeHtml(b.value)}" class="sr-only"
                            ${i === 0 ? 'checked' : ''} onchange="showBankInfo(${i})">
                     <span class="radio-dot"></span>
                     <span class="font-semibold">${b.label}</span>
@@ -604,14 +701,17 @@
         }
 
         function submitOrder() {
-            const button = document.getElementById('payButton');
-            const label = document.getElementById('payLabel');
+            // Ada 2 tombol bayar (desktop & bar HP), keduanya dikendalikan bersamaan
+            const buttons = document.querySelectorAll('[data-pay-btn]');
+            const labels = document.querySelectorAll('[data-pay-label]');
 
             if (cartData.length === 0) {
                 showToast('Keranjang belanja kosong!');
-                button.classList.remove('shake');
-                void button.offsetWidth;
-                button.classList.add('shake');
+                buttons.forEach(b => {
+                    b.classList.remove('shake');
+                    void b.offsetWidth;
+                    b.classList.add('shake');
+                });
                 return;
             }
 
@@ -629,16 +729,20 @@
             const tableNumber = localStorage.getItem('customerTable') || 'Takeaway';
             const notes = document.getElementById('orderNotes').value.trim();
 
-            // Tombol masuk mode loading
-            button.disabled = true;
-            label.textContent = 'Memproses pesanan...';
-            button.insertAdjacentHTML('afterbegin', '<span class="spinner" aria-hidden="true"></span>');
+            // Semua tombol masuk mode loading
+            buttons.forEach(b => {
+                b.disabled = true;
+                b.insertAdjacentHTML('afterbegin', '<span class="spinner" aria-hidden="true"></span>');
+            });
+            labels.forEach(l => l.textContent = 'Memproses pesanan...');
 
             const resetButton = () => {
-                button.disabled = false;
-                label.textContent = 'Bayar sekarang';
-                const sp = button.querySelector('.spinner');
-                if (sp) sp.remove();
+                buttons.forEach(b => {
+                    b.disabled = false;
+                    const sp = b.querySelector('.spinner');
+                    if (sp) sp.remove();
+                });
+                labels.forEach(l => l.textContent = 'Bayar sekarang');
             };
 
             fetch('{{ url('checkout/process') }}', {
@@ -661,7 +765,7 @@
                 .then(data => {
                     if (data.status === 'success') {
                         localStorage.removeItem('brewNestCart');
-                        label.textContent = 'Pesanan diterima';
+                        labels.forEach(l => l.textContent = 'Pesanan diterima');
                         showToast('Pesanan diterima. Mengalihkan...');
                         setTimeout(() => {
                             window.location.href = data.redirect_url;
@@ -677,6 +781,16 @@
                     showToast('Koneksi bermasalah. Coba lagi.');
                 });
         }
+
+        // Tombol "kembali" di browser: pastikan tombol tidak macet di mode loading
+        window.addEventListener('pageshow', e => {
+            if (!e.persisted) return;
+            document.querySelectorAll('[data-pay-btn]').forEach(b => {
+                b.disabled = false;
+                b.querySelector('.spinner')?.remove();
+            });
+            document.querySelectorAll('[data-pay-label]').forEach(l => l.textContent = 'Bayar sekarang');
+        });
     </script>
 </body>
 

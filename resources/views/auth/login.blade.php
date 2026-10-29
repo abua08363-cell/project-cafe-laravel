@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f8f0e3">
     <title>Login Admin | BrewNest Coffee</title>
     <link rel="icon" type="image/jpeg" href="{{ asset('kopi.jpeg') }}">
-
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -160,6 +160,7 @@
             transform: scaleX(0);
             transform-origin: left;
             transition: transform .35s ease;
+            pointer-events: none;
         }
 
         .field:focus-within::after {
@@ -183,9 +184,15 @@
             z-index: -1;
         }
 
-        .btn-brew:hover::before,
         .btn-brew:focus-visible::before {
             transform: translateY(0);
+        }
+
+        /* hover hanya di perangkat yang memang punya kursor (bukan HP) */
+        @media (hover: hover) {
+            .btn-brew:hover::before {
+                transform: translateY(0);
+            }
         }
 
         .btn-brew:active {
@@ -256,9 +263,13 @@
 
 <body class="min-h-screen bg-cream font-sans text-coffee antialiased">
 
+    @php
+        $loginError = session('error') ?: $errors->first();
+    @endphp
+
     <main class="grid min-h-screen md:grid-cols-2">
 
-        <!-- BAGIAN KIRI -->
+        <!-- ============ BAGIAN KIRI (desktop/tablet) ============ -->
         <section class="relative hidden items-center justify-center overflow-hidden bg-coffee p-12 text-white md:flex">
 
             <div class="bg-drift absolute inset-0 opacity-40"
@@ -275,12 +286,9 @@
                         <path class="steam" d="M80 62c-9-10 9-17 0-28s9-17 0-26" />
                         <path class="steam" d="M100 62c-9-10 9-17 0-28s9-17 0-26" />
                     </g>
-                    <!-- gagang -->
                     <path d="M121 84h8a14 14 0 0 1 0 28h-12" stroke="#d7a66c" stroke-width="7" stroke-linecap="round" />
-                    <!-- badan cangkir -->
                     <path d="M37 76h88v22a34 34 0 0 1-34 34H71a34 34 0 0 1-34-34V76z" fill="#d7a66c" />
                     <path d="M37 76h88v8H37z" fill="#754a30" />
-                    <!-- piring -->
                     <ellipse cx="81" cy="142" rx="50" ry="6" fill="#754a30"
                         opacity=".7" />
                 </svg>
@@ -299,24 +307,41 @@
             </div>
         </section>
 
-        <!-- BAGIAN LOGIN -->
-        <section class="flex items-center justify-center px-6 py-12">
+        <!-- ============ BAGIAN LOGIN ============ -->
+        <section
+            class="flex items-center justify-center bg-[radial-gradient(60rem_30rem_at_100%_0%,rgba(215,166,108,.22),transparent_60%)] px-5 py-8 sm:px-6 sm:py-12">
 
             <div class="w-full max-w-md">
 
                 <a href="{{ url('/') }}"
-                    class="rise d1 group mb-10 inline-flex items-center gap-2 text-sm text-brown transition hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel rounded">
-                    <span class="transition-transform group-hover:-translate-x-1">←</span>
+                    class="rise d1 group mb-6 inline-flex items-center gap-2 rounded text-sm text-brown transition hover:text-coffee focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel sm:mb-10">
+                    <span class="transition-transform group-hover:-translate-x-1" aria-hidden="true">←</span>
                     Kembali ke halaman utama
                 </a>
 
-                <div class="rise d1 mb-8 md:hidden">
-                    <div class="mb-3 text-5xl">☕</div>
-                    <h1 class="font-display text-3xl font-bold text-coffee">BrewNest Coffee</h1>
+                <!-- Brand ringkas khusus HP -->
+                <div class="rise d1 mb-8 flex items-center gap-4 rounded-2xl bg-coffee p-4 text-white md:hidden">
+                    <svg class="cup h-16 w-16 flex-none" viewBox="0 0 160 160" fill="none" aria-hidden="true">
+                        <g stroke="#f8f0e3" stroke-width="4" stroke-linecap="round">
+                            <path class="steam" d="M60 62c-9-10 9-17 0-28s9-17 0-26" />
+                            <path class="steam" d="M80 62c-9-10 9-17 0-28s9-17 0-26" />
+                            <path class="steam" d="M100 62c-9-10 9-17 0-28s9-17 0-26" />
+                        </g>
+                        <path d="M121 84h8a14 14 0 0 1 0 28h-12" stroke="#d7a66c" stroke-width="7"
+                            stroke-linecap="round" />
+                        <path d="M37 76h88v22a34 34 0 0 1-34 34H71a34 34 0 0 1-34-34V76z" fill="#d7a66c" />
+                        <path d="M37 76h88v8H37z" fill="#754a30" />
+                        <ellipse cx="81" cy="142" rx="50" ry="6" fill="#754a30"
+                            opacity=".7" />
+                    </svg>
+                    <div>
+                        <p class="font-display text-xl font-bold leading-tight">BrewNest Coffee</p>
+                        <p class="text-sm text-caramel">Coffee, comfort, quality</p>
+                    </div>
                 </div>
 
                 <div class="rise d2 mb-8">
-                    <h2 class="mb-3 font-display text-4xl font-bold">
+                    <h2 class="mb-3 font-display text-3xl font-bold leading-tight sm:text-4xl">
                         Masuk ke panel admin
                     </h2>
                     <p class="text-stone-600">
@@ -324,11 +349,11 @@
                     </p>
                 </div>
 
-                @if (session('error'))
+                @if ($loginError)
                     <div role="alert"
                         class="shake mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                         <span aria-hidden="true">⚠️</span>
-                        <span>{{ session('error') }}</span>
+                        <span>{{ $loginError }}</span>
                     </div>
                 @endif
 
@@ -339,25 +364,42 @@
                     <div class="rise d3">
                         <label for="username" class="mb-2 block font-semibold">Username</label>
                         <div class="field">
-                            <input type="text" name="username" id="username" placeholder="Masukkan username"
-                                autocomplete="username" autofocus required
-                                class="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none transition placeholder:text-stone-400 focus:border-brown focus:shadow-[0_8px_24px_-12px_rgba(117,74,48,.45)]">
+                            <input type="text" name="username" id="username" value="{{ old('username') }}"
+                                placeholder="Masukkan username" autocomplete="username" autocapitalize="none"
+                                autocorrect="off" spellcheck="false" required
+                                class="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-base outline-none transition placeholder:text-stone-400 focus:border-brown focus:shadow-[0_8px_24px_-12px_rgba(117,74,48,.45)]">
                         </div>
                     </div>
 
                     <div class="rise d4">
                         <label for="password" class="mb-2 block font-semibold">Password</label>
-                        <div class="field relative">
+                        <div class="field">
                             <input type="password" name="password" id="password" placeholder="Masukkan password"
                                 autocomplete="current-password" required
-                                class="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 pr-32 outline-none transition placeholder:text-stone-400 focus:border-brown focus:shadow-[0_8px_24px_-12px_rgba(117,74,48,.45)]">
+                                class="w-full rounded-xl border border-stone-300 bg-white py-3 pl-4 pr-12 text-base outline-none transition placeholder:text-stone-400 focus:border-brown focus:shadow-[0_8px_24px_-12px_rgba(117,74,48,.45)]">
 
                             <button type="button" id="togglePassword" aria-pressed="false"
-                                class="absolute right-3 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-sm font-semibold text-brown transition hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel">
-                                Lihat
+                                aria-label="Tampilkan password"
+                                class="absolute right-1.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-brown transition hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel">
+                                <!-- mata terbuka -->
+                                <svg id="eyeOn" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                <!-- mata dicoret -->
+                                <svg id="eyeOff" xmlns="http://www.w3.org/2000/svg" class="hidden h-5 w-5"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M3 3l18 18" />
+                                    <path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1" />
+                                    <path d="M6.6 6.6A16.6 16.6 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 4.4-1" />
+                                    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                                </svg>
                             </button>
                         </div>
-                        <p id="capsHint" class="mt-2 hidden text-sm text-amber-700">
+                        <p id="capsHint" class="mt-2 hidden text-sm text-amber-700" role="status">
                             Caps Lock sedang aktif.
                         </p>
                     </div>
@@ -381,18 +423,29 @@
 
     <script>
         const form = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
         const passwordInput = document.getElementById('password');
         const togglePassword = document.getElementById('togglePassword');
+        const eyeOn = document.getElementById('eyeOn');
+        const eyeOff = document.getElementById('eyeOff');
         const capsHint = document.getElementById('capsHint');
         const loginButton = document.getElementById('loginButton');
         const loginLabel = document.getElementById('loginLabel');
+        const defaultLabel = loginLabel.textContent;
+
+        // Fokus otomatis hanya di desktop/tablet (di HP keyboard akan langsung menutupi layar)
+        if (window.matchMedia('(min-width: 768px)').matches) {
+            (usernameInput.value ? passwordInput : usernameInput).focus();
+        }
 
         // Tampilkan atau sembunyikan password
         togglePassword.addEventListener('click', function() {
-            const isPassword = passwordInput.type === 'password';
-            passwordInput.type = isPassword ? 'text' : 'password';
-            togglePassword.textContent = isPassword ? 'Sembunyikan' : 'Lihat';
-            togglePassword.setAttribute('aria-pressed', String(isPassword));
+            const show = passwordInput.type === 'password';
+            passwordInput.type = show ? 'text' : 'password';
+            eyeOn.classList.toggle('hidden', show);
+            eyeOff.classList.toggle('hidden', !show);
+            togglePassword.setAttribute('aria-pressed', String(show));
+            togglePassword.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
         });
 
         // Peringatan Caps Lock
@@ -412,6 +465,14 @@
             loginButton.disabled = true;
             loginLabel.textContent = 'Memproses...';
             loginButton.insertAdjacentHTML('afterbegin', '<span class="spinner" aria-hidden="true"></span>');
+        });
+
+        // Kalau user menekan tombol "kembali" di browser, tombol jangan tetap loading
+        window.addEventListener('pageshow', function(e) {
+            if (!e.persisted) return;
+            loginButton.disabled = false;
+            loginLabel.textContent = defaultLabel;
+            loginButton.querySelector('.spinner')?.remove();
         });
     </script>
 

@@ -2,6 +2,12 @@
     // $order boleh berupa model Eloquent atau array
     $order = is_array($order) ? $order : (method_exists($order, 'toArray') ? $order->toArray() : (array) $order);
 
+    // Ulasan yang sudah ada (dikirim controller). Aman jika tidak dikirim.
+    $existingReview = $existingReview ?? null;
+    if (is_array($existingReview)) {
+        $existingReview = (object) $existingReview;
+    }
+
     $orderId = $order['id'] ?? null;
     $orderNumber = $order['order_number'] ?? ($order['id'] ?? '-');
 
@@ -77,22 +83,25 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#fbf8f3">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? ($isPaid ? 'Pembayaran Berhasil - BrewNest Coffee' : 'Pesanan Diterima - BrewNest Coffee') }}
     </title>
     <link rel="icon" type="image/jpeg" href="{{ asset('kopi.jpeg') }}">
 
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Courier+Prime:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&family=Courier+Prime:wght@400;700&display=swap"
         rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            future: {
+                hoverOnlyWhenSupported: true
+            },
             theme: {
                 extend: {
                     colors: {
@@ -104,7 +113,8 @@
                         sand: '#ece2d4'
                     },
                     fontFamily: {
-                        display: ['"Playfair Display"', 'Georgia', 'serif'],
+                        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+                        display: ['Fraunces', 'Georgia', 'serif'],
                         receipt: ['"Courier Prime"', '"Courier New"', 'monospace']
                     }
                 }
@@ -113,10 +123,6 @@
     </script>
 
     <style>
-        body {
-            font-family: 'Inter', Arial, sans-serif;
-        }
-
         .bg-glow {
             background:
                 radial-gradient(circle at 15% 10%, rgba(217, 164, 106, .28), transparent 40%),
@@ -242,7 +248,6 @@
             color: #1d110b;
             font-size: 13px;
             line-height: 1.45;
-            box-shadow: 0 18px 40px -12px rgba(29, 17, 11, .25), 0 0 0 1px rgba(29, 17, 11, .05);
             /* tepi atas & bawah bergerigi seperti kertas sobek */
             --tooth: 10px;
             -webkit-mask:
@@ -301,19 +306,18 @@
             font-size: 20px;
         }
 
+        /* Stempel status: sekarang berada di alur struk (tidak menimpa teks lain) */
         .rc-stamp {
-            position: absolute;
-            right: 14px;
-            top: 150px;
-            transform: rotate(-12deg);
+            display: inline-block;
+            transform: rotate(-6deg);
             border: 3px solid #0d9a6b;
             color: #0d9a6b;
-            padding: 2px 12px;
+            padding: 2px 14px;
             border-radius: 6px;
             font-weight: 700;
             letter-spacing: 3px;
             font-size: 20px;
-            opacity: .8;
+            opacity: .85;
             mix-blend-mode: multiply;
             animation: stamp .5s cubic-bezier(.3, 1.8, .5, 1) 1.8s both;
         }
@@ -321,20 +325,20 @@
         /* Pesanan belum dibayar: stempel berwarna karamel */
         .rc-stamp.pending {
             border-color: #b9854f;
-            color: #b9854f;
-            font-size: 15px;
+            color: #a06f3a;
+            font-size: 16px;
             letter-spacing: 2px;
         }
 
         @keyframes stamp {
             from {
-                transform: rotate(-12deg) scale(2.2);
+                transform: rotate(-6deg) scale(2.2);
                 opacity: 0;
             }
 
             to {
-                transform: rotate(-12deg) scale(1);
-                opacity: .8;
+                transform: rotate(-6deg) scale(1);
+                opacity: .85;
             }
         }
 
@@ -397,6 +401,7 @@
             line-height: 0;
             border-radius: 8px;
             transition: color .15s, transform .15s;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .star-btn:focus-visible {
@@ -408,12 +413,14 @@
             color: #f2a516;
         }
 
-        .star-btn.hover {
-            color: #f7c04d;
+        .star-btn:active {
+            transform: scale(.9);
         }
 
-        .star-btn:hover {
-            transform: scale(1.12);
+        @media (hover: hover) {
+            .star-btn:hover {
+                transform: scale(1.12);
+            }
         }
 
         .chip {
@@ -422,8 +429,10 @@
             transition: background .15s, border-color .15s, color .15s;
         }
 
-        .chip:hover {
-            border-color: #b9854f;
+        @media (hover: hover) {
+            .chip:hover {
+                border-color: #b9854f;
+            }
         }
 
         .chip[aria-pressed="true"] {
@@ -438,8 +447,8 @@
         }
 
         .switch {
-            width: 40px;
-            height: 24px;
+            width: 44px;
+            height: 26px;
             border-radius: 9999px;
             background: #d9d0c3;
             position: relative;
@@ -452,8 +461,8 @@
             position: absolute;
             top: 3px;
             left: 3px;
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             border-radius: 9999px;
             background: #fff;
             transition: transform .2s;
@@ -465,7 +474,7 @@
         }
 
         .switch[aria-checked="true"]::after {
-            transform: translateX(16px);
+            transform: translateX(18px);
         }
 
         .reveal {
@@ -480,6 +489,7 @@
 
         .reveal>div {
             overflow: hidden;
+            min-height: 0;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -489,6 +499,7 @@
             *::after {
                 animation-duration: .01ms !important;
                 animation-delay: 0s !important;
+                transition-duration: .01ms !important;
             }
         }
 
@@ -514,35 +525,38 @@
     </style>
 </head>
 
-<body class="bg-glow min-h-screen text-coffee antialiased">
+<body class="bg-glow min-h-screen font-sans text-coffee antialiased">
 
     <div class="blob left-[-80px] top-[20%] h-72 w-72 bg-tan"></div>
-    <div class="blob bottom-[-60px] right-[-60px] h-80 w-80 bg-emerald-300" style="animation-delay:-6s"></div>
+    <div class="blob bottom-[-60px] right-[-60px] hidden h-80 w-80 bg-emerald-300 sm:block" style="animation-delay:-6s">
+    </div>
 
     <!-- Header -->
     <header class="no-print relative z-10 border-b border-stone-200/70 bg-paper/80 backdrop-blur">
-        <div class="mx-auto flex max-w-3xl items-center justify-between px-5 py-3.5">
-            <a href="{{ url('/') }}" class="flex items-center gap-3">
-                <span class="grid h-10 w-10 place-items-center rounded-xl border border-coffee/70">
+        <div class="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
+            <a href="{{ url('/') }}" class="flex min-w-0 items-center gap-3">
+                <span class="grid h-10 w-10 flex-none place-items-center rounded-xl border border-coffee/70">
                     <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                        stroke-linecap="round" stroke-linejoin="round">
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M10 2v2M14 2v2M6 2v2" />
                         <path
                             d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" />
                     </svg>
                 </span>
-                <span>
+                <span class="min-w-0">
                     <span class="block font-display text-2xl font-semibold leading-none">BrewNest</span>
                     <span class="mt-1 block text-[10px] font-semibold tracking-[2.5px] text-stone-500">COFFEE &amp;
                         EATERY</span>
                 </span>
             </a>
-            <a href="{{ url('/') }}" class="text-xs font-semibold text-brown transition hover:text-caramel">←
+            <a href="{{ url('/') }}"
+                class="flex-none py-2 text-xs font-semibold text-brown transition hover:text-caramel">←
                 Beranda</a>
         </div>
     </header>
 
-    <main class="relative z-10 mx-auto max-w-xl px-4 pb-20 pt-10 sm:pt-14">
+    <main class="relative z-10 mx-auto max-w-xl px-4 pt-8 sm:pt-14"
+        style="padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));">
 
         <!-- Ikon Sukses -->
         <div class="no-print relative mx-auto mb-6 grid h-28 w-28 place-items-center">
@@ -551,15 +565,15 @@
             <div
                 class="badge-pop grid h-28 w-28 place-items-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-xl shadow-emerald-500/30">
                 <svg viewBox="0 0 80 80" class="h-16 w-16" fill="none" stroke="#fff" stroke-width="5"
-                    stroke-linecap="round" stroke-linejoin="round">
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle class="check-ring" cx="40" cy="40" r="30" stroke-opacity=".45" />
                     <path class="check-mark" d="M27 41l9 9 18-20" />
                 </svg>
             </div>
         </div>
 
-        <div class="no-print mb-9 text-center">
-            <h1 class="rise font-display text-4xl font-semibold sm:text-5xl" style="--d:.9s">
+        <div class="no-print mb-8 text-center sm:mb-9">
+            <h1 class="rise font-display text-4xl font-semibold leading-tight sm:text-5xl" style="--d:.9s">
                 @if ($isPaid)
                     Pembayaran <span class="italic text-caramel">Berhasil!</span>
                 @else
@@ -582,7 +596,7 @@
                             onerror="this.remove()">
                     @endif
                     <svg class="mx-auto h-9 w-9" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M10 2v2M14 2v2M6 2v2" />
                         <path
                             d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" />
@@ -606,7 +620,8 @@
                     <div class="rc-row"><span class="rc-muted">Jam</span><span>{{ date('H:i', $orderTime) }} WIB</span>
                     </div>
                     <div class="rc-row"><span class="rc-muted">Pemesan</span><span
-                            class="text-right">{{ $order['customer_name'] ?? ($order['name'] ?? 'Tamu') }}</span></div>
+                            class="text-right">{{ $order['customer_name'] ?? ($order['name'] ?? 'Tamu') }}</span>
+                    </div>
                     <div class="rc-row"><span class="rc-muted">Meja/Alamat</span><span
                             class="text-right">{{ $order['table_number'] ?? ($order['table'] ?? '-') }}</span></div>
                     @if (!empty($order['cashier']))
@@ -682,7 +697,8 @@
 
                 <div class="mt-2 space-y-1 text-[12px]">
                     <div class="rc-row"><span class="rc-muted">Metode bayar</span><span
-                            class="font-bold uppercase">{{ $order['payment_method'] ?? 'Tunai' }}</span></div>
+                            class="text-right font-bold uppercase">{{ $order['payment_method'] ?? 'Tunai' }}</span>
+                    </div>
                     @if ($paidAmount > 0)
                         <div class="rc-row"><span class="rc-muted">Dibayar</span><span>{{ $rp($paidAmount) }}</span>
                         </div>
@@ -693,7 +709,9 @@
                             class="font-bold">{{ $isPaid ? 'LUNAS' : 'BELUM DIBAYAR' }}</span></div>
                 </div>
 
-                <div class="rc-stamp {{ $isPaid ? '' : 'pending' }}">{{ $isPaid ? 'LUNAS' : 'MENUNGGU' }}</div>
+                <div class="mt-4 text-center">
+                    <span class="rc-stamp {{ $isPaid ? '' : 'pending' }}">{{ $isPaid ? 'LUNAS' : 'MENUNGGU' }}</span>
+                </div>
 
                 <div class="rc-dash"></div>
 
@@ -719,10 +737,9 @@
             style="--d:1.9s">
             <p class="mb-4 text-[11px] font-bold text-stone-500">Status pesanan</p>
             <div class="relative px-3">
-                <div class="absolute left-3 right-3 top-[13px] h-1 rounded-full bg-stone-200"></div>
-                <div class="absolute left-3 top-[13px] h-1 rounded-full" style="right:calc(50% - .75rem + 0px)">
-                    <div class="progress-fill h-full rounded-full bg-gradient-to-r from-emerald-500 to-caramel"
-                        style="width:0"></div>
+                <!-- jalur: dari tengah titik pertama ke tengah titik terakhir -->
+                <div class="absolute left-[2.75rem] right-[2.75rem] top-[12px] h-1 rounded-full bg-stone-200">
+                    <div class="progress-fill h-full rounded-full bg-gradient-to-r from-emerald-500 to-caramel"></div>
                 </div>
                 <div class="relative flex justify-between text-center">
                     <div class="w-16">
@@ -745,15 +762,16 @@
         </div>
 
         <!-- Section Rating & Ulasan -->
-        <section id="reviewCard" class="no-print rise mt-12" style="--d:2.1s" aria-labelledby="reviewTitle">
-            <div class="rounded-3xl bg-white p-6 shadow-xl shadow-coffee/10 ring-1 ring-stone-200/70 sm:p-7">
+        <section id="reviewCard" class="no-print rise mt-10 sm:mt-12" style="--d:2.1s"
+            aria-labelledby="reviewTitle">
+            <div class="rounded-3xl bg-white p-5 shadow-xl shadow-coffee/10 ring-1 ring-stone-200/70 sm:p-7">
                 <div id="reviewForm" class="@if ($existingReview) hidden @endif">
                     <h2 id="reviewTitle" class="font-display text-2xl font-semibold">Bagaimana pesananmu?</h2>
                     <p class="mt-1 text-sm text-stone-500">Ulasanmu membantu kami meracik kopi yang lebih baik.</p>
 
-                    <div class="mt-6 rounded-2xl bg-paper px-4 py-5 text-center ring-1 ring-stone-200/70">
-                        <div id="overallStars" class="flex justify-center gap-1.5" role="radiogroup"
-                            aria-label="Rating keseluruhan" data-size="40"></div>
+                    <div class="mt-6 rounded-2xl bg-paper px-3 py-5 text-center ring-1 ring-stone-200/70 sm:px-4">
+                        <div id="overallStars" class="flex justify-center gap-0.5 sm:gap-1.5" role="radiogroup"
+                            aria-label="Rating keseluruhan" data-size="36"></div>
                         <p id="overallLabel" class="mt-3 h-5 text-sm font-semibold text-brown" aria-live="polite">
                             Ketuk bintang untuk menilai</p>
                     </div>
@@ -764,7 +782,7 @@
                                 <div>
                                     <p class="text-sm font-bold">Nilai per aspek <span
                                             class="font-normal text-stone-400">(opsional)</span></p>
-                                    <div class="mt-3 space-y-2.5">
+                                    <div class="mt-3 space-y-3">
                                         @php
                                             $aspects = [
                                                 'rasa' => 'Rasa makanan & minuman',
@@ -774,11 +792,12 @@
                                             ];
                                         @endphp
                                         @foreach ($aspects as $key => $label)
-                                            <div class="flex items-center justify-between gap-3">
+                                            <div
+                                                class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                                 <span class="text-xs text-stone-600">{{ $label }}</span>
                                                 <div class="flex gap-0.5" role="radiogroup"
                                                     aria-label="{{ $label }}"
-                                                    data-aspect="{{ $key }}" data-size="22"></div>
+                                                    data-aspect="{{ $key }}" data-size="26"></div>
                                             </div>
                                         @endforeach
                                     </div>
@@ -788,19 +807,20 @@
                                     <div>
                                         <p class="text-sm font-bold">Menu yang kamu pesan <span
                                                 class="font-normal text-stone-400">(opsional)</span></p>
-                                        <div class="mt-3 space-y-2.5">
+                                        <div class="mt-3 space-y-3">
                                             @foreach ($reviewItems as $it)
                                                 @php
                                                     $iid = $it['menu_id'] ?? ($it['id'] ?? null);
                                                     $iname = $it['name'] ?? ($it['menu_name'] ?? 'Menu');
                                                 @endphp
                                                 @continue($iid === null)
-                                                <div class="flex items-center justify-between gap-3">
+                                                <div
+                                                    class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                                     <span
-                                                        class="truncate text-xs text-stone-600">{{ $iname }}</span>
+                                                        class="max-w-full truncate text-xs text-stone-600">{{ $iname }}</span>
                                                     <div class="flex flex-none gap-0.5" role="radiogroup"
                                                         aria-label="Rating {{ $iname }}"
-                                                        data-item="{{ $iid }}" data-size="22"></div>
+                                                        data-item="{{ $iid }}" data-size="26"></div>
                                                 </div>
                                             @endforeach
                                         </div>
@@ -817,7 +837,7 @@
                                             class="font-normal text-stone-400">(opsional)</span></label>
                                     <textarea id="reviewText" rows="4" maxlength="300"
                                         placeholder="Misalnya: latte-nya pas, tapi menunggu agak lama."
-                                        class="mt-2 w-full resize-none rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm placeholder:text-stone-400 focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/30"></textarea>
+                                        class="mt-2 w-full resize-none rounded-xl border border-stone-300 bg-white px-4 py-3 text-base placeholder:text-stone-400 focus:border-caramel focus:outline-none focus:ring-2 focus:ring-caramel/30 sm:text-sm"></textarea>
                                     <p class="mt-1 text-right text-[11px] text-stone-400"><span
                                             id="charCount">0</span>/300</p>
                                 </div>
@@ -827,9 +847,10 @@
                                     <div class="seg flex overflow-hidden rounded-full border border-stone-300 text-xs font-semibold"
                                         id="recommendSeg">
                                         <button type="button" data-val="1" aria-pressed="false"
-                                            class="px-4 py-2 transition">Pasti</button>
+                                            class="px-4 py-2.5 transition">Pasti</button>
                                         <button type="button" data-val="0" aria-pressed="false"
-                                            class="border-l border-stone-300 px-4 py-2 transition">Belum dulu</button>
+                                            class="border-l border-stone-300 px-4 py-2.5 transition">Belum
+                                            dulu</button>
                                     </div>
                                 </div>
 
@@ -925,10 +946,15 @@
                 'Tempat kurang nyaman', 'Harga kurang sepadan'
             ];
 
+            const starPath =
+                'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z';
+            const starSvg = size =>
+                `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${starPath}"/></svg>`;
+
             let selectedTags = [];
 
             if (overallStarsContainer) {
-                const size = overallStarsContainer.dataset.size || 40;
+                const size = overallStarsContainer.dataset.size || 36;
                 for (let i = 1; i <= 5; i++) {
                     const btn = document.createElement('button');
                     btn.type = 'button';
@@ -936,8 +962,7 @@
                     btn.setAttribute('role', 'radio');
                     btn.setAttribute('aria-checked', 'false');
                     btn.setAttribute('aria-label', `${i} bintang`);
-                    btn.innerHTML =
-                        `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+                    btn.innerHTML = starSvg(size);
 
                     btn.addEventListener('click', () => {
                         currentRating = i;
@@ -975,7 +1000,7 @@
                 tagsToUse.forEach(tagText => {
                     const chip = document.createElement('button');
                     chip.type = 'button';
-                    chip.className = 'chip rounded-full px-3.5 py-1.5 text-xs font-semibold';
+                    chip.className = 'chip rounded-full px-3.5 py-2 text-xs font-semibold';
                     chip.textContent = tagText;
                     chip.setAttribute('aria-pressed', 'false');
 
@@ -994,20 +1019,23 @@
             }
 
             document.querySelectorAll('[data-aspect], [data-item]').forEach(container => {
-                const size = container.dataset.size || 22;
+                const size = container.dataset.size || 26;
                 let val = 0;
                 for (let i = 1; i <= 5; i++) {
                     const b = document.createElement('button');
                     b.type = 'button';
-                    b.className = 'star-btn p-0.5';
-                    b.innerHTML =
-                        `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+                    b.className = 'star-btn p-1';
+                    b.setAttribute('role', 'radio');
+                    b.setAttribute('aria-checked', 'false');
+                    b.setAttribute('aria-label', `${i} bintang`);
+                    b.innerHTML = starSvg(size);
                     b.addEventListener('click', () => {
                         val = i;
                         container.dataset.value = val;
                         Array.from(container.children).forEach((child, idx) => {
-                            if (idx < val) child.classList.add('on');
-                            else child.classList.remove('on');
+                            child.classList.toggle('on', idx < val);
+                            child.setAttribute('aria-checked', idx === val - 1 ? 'true' :
+                                'false');
                         });
                     });
                     container.appendChild(b);
