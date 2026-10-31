@@ -1,7 +1,22 @@
 @php
     // Admin yang sedang login (untuk link footer)
     $isAdmin = auth()->check() && in_array(auth()->user()->role ?? '', ['admin', 'staff'], true);
-    $isCafeOpen = ($storeStatus ?? 'open') !== 'closed';
+    $isCafeOpen = strtolower(trim((string) ($storeStatus ?? 'open'))) !== 'closed';
+
+    // ===== Pengaturan kedai dari Admin > Settings (tabel settings) =====
+    $settings = collect($settings ?? [])->all();
+    // Pakai nilai setting kalau terisi, kalau kosong pakai nilai default
+    $s = fn($key, $default = '') => filled($settings[$key] ?? null) ? $settings[$key] : $default;
+
+    $storeName = $s('store_name', 'BrewNest Coffee');
+    $storeTagline = $s('store_tagline', 'Kopi enak, suasana hangat, kebersamaan yang lebih baik.');
+    $openHours = $s('opening_hours', '07.00 - 22.00');
+    $storePhone = $s('phone_number', '(123) 456-7890');
+    $phoneHref = preg_replace('/[^\d+]/', '', (string) $storePhone); // untuk link tel:
+    $storeEmail = $s('contact_email', 'hello@brewnest.com');
+    $storeAddress = $s('store_address', '123 Coffee Street, Brooklyn, NY 11201');
+    $taxPercent = (float) $s('tax_percentage', 11);
+    $taxLabel = rtrim(rtrim(number_format($taxPercent, 2, '.', ''), '0'), '.');
 
     // Mendukung array maupun Eloquent model / stdClass
     $toArr = fn($row) => is_array($row) ? $row : (method_exists($row, 'toArray') ? $row->toArray() : (array) $row);
@@ -22,7 +37,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'BrewNest Coffee | Temukan Kopi Favoritmu' }}</title>
+    <title>{{ $title ?? $storeName . ' | Temukan Kopi Favoritmu' }}</title>
     <link rel="icon" type="image/jpeg" href="{{ asset('kopi.jpeg') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -722,14 +737,14 @@
         <div class="mx-auto flex max-w-7xl items-center justify-between px-10 py-2.5">
             <span class="flex items-center gap-2"><svg class="ic h-3.5 w-3.5">
                     <use href="#i-pin" />
-                </svg> 123 Coffee Street, Brooklyn, NY 11201</span>
+                </svg> {{ $storeAddress }}</span>
             <span class="flex items-center gap-2"><svg class="ic h-3.5 w-3.5">
                     <use href="#i-clock" />
-                </svg> Setiap hari: 07.00 - 22.00</span>
+                </svg> Setiap hari: {{ $openHours }}</span>
             <div class="flex items-center gap-5">
                 <span class="flex items-center gap-2"><svg class="ic h-3.5 w-3.5">
                         <use href="#i-phone" />
-                    </svg> (123) 456-7890</span>
+                    </svg> {{ $storePhone }}</span>
                 <span class="flex items-center gap-3">
                     <a href="#" aria-label="Facebook" class="hover:text-tan"><svg class="ic h-3.5 w-3.5">
                             <use href="#i-facebook" />
@@ -1106,17 +1121,9 @@
                             <use href="#i-clock" />
                         </svg> Jam Buka</h3>
                     <dl class="space-y-2.5 text-xs">
-                        <div class="flex justify-between">
-                            <dt class="text-stone-300">Senin - Jumat</dt>
-                            <dd class="font-semibold">07.00 - 22.00</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-stone-300">Sabtu</dt>
-                            <dd class="font-semibold">08.00 - 23.00</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-stone-300">Minggu</dt>
-                            <dd class="font-semibold">08.00 - 21.00</dd>
+                        <div class="flex justify-between gap-3">
+                            <dt class="text-stone-300">Setiap hari</dt>
+                            <dd class="font-semibold">{{ $openHours }}</dd>
                         </div>
                     </dl>
                 </div>
@@ -1128,7 +1135,7 @@
                         </svg> Pesan Meja</h4>
                     <p class="max-w-[10rem] text-[11px] leading-snug text-white/90">Amankan tempatmu dan nikmati
                         pengalaman kopi yang spesial.</p>
-                    <a href="tel:+11234567890"
+                    <a href="tel:{{ $phoneHref }}"
                         class="mt-4 inline-flex items-center gap-2 rounded-md border border-white/70 px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition hover:bg-white hover:text-coffee">
                         Reservasi Sekarang <svg class="ic h-3 w-3">
                             <use href="#i-arrow" />
@@ -1232,7 +1239,7 @@
                             EATERY</span>
                     </span>
                 </a>
-                <p class="mt-4 text-xs leading-relaxed">Kopi enak, suasana hangat,<br>kebersamaan yang lebih baik.</p>
+                <p class="mt-4 max-w-[16rem] text-xs leading-relaxed">{{ $storeTagline }}</p>
                 <div class="mt-5 flex gap-2">
                     <a href="#" aria-label="Facebook"
                         class="grid h-8 w-8 place-items-center rounded-full border border-white/30 transition hover:border-tan hover:text-tan"><svg
@@ -1287,13 +1294,17 @@
                 <ul class="space-y-3 text-xs">
                     <li class="flex gap-2"><svg class="ic mt-0.5 h-3.5 w-3.5">
                             <use href="#i-pin" />
-                        </svg><span>123 Coffee Street,<br>Brooklyn, NY 11201</span></li>
+                        </svg><span>{{ $storeAddress }}</span></li>
                     <li class="flex gap-2"><svg class="ic mt-0.5 h-3.5 w-3.5">
                             <use href="#i-phone" />
-                        </svg><a href="tel:+11234567890" class="hover:text-tan">(123) 456-7890</a></li>
+                        </svg><a href="tel:{{ $phoneHref }}" class="hover:text-tan">{{ $storePhone }}</a></li>
                     <li class="flex gap-2"><svg class="ic mt-0.5 h-3.5 w-3.5">
                             <use href="#i-mail" />
-                        </svg><a href="mailto:hello@brewnest.com" class="hover:text-tan">hello@brewnest.com</a></li>
+                        </svg><a href="mailto:{{ $storeEmail }}" class="hover:text-tan">{{ $storeEmail }}</a>
+                    </li>
+                    <li class="flex gap-2"><svg class="ic mt-0.5 h-3.5 w-3.5">
+                            <use href="#i-clock" />
+                        </svg><span>{{ $openHours }}</span></li>
                 </ul>
             </div>
 
@@ -1314,7 +1325,7 @@
         </div>
 
         <div class="border-t border-white/10 py-4 text-center text-[11px] text-stone-400">
-            © {{ date('Y') }} BrewNest Coffee &amp; Eatery. Hak cipta dilindungi.
+            © {{ date('Y') }} {{ $storeName }} &amp; Eatery. Hak cipta dilindungi.
         </div>
     </footer>
 
@@ -1343,7 +1354,7 @@
                     <span class="text-stone-600">Subtotal</span><span id="cartSubtotal">Rp 0</span>
                 </div>
                 <div class="flex items-center justify-between text-sm font-semibold">
-                    <span class="text-stone-600">Pajak (11%)</span><span id="cartTax">Rp 0</span>
+                    <span class="text-stone-600">Pajak ({{ $taxLabel }}%)</span><span id="cartTax">Rp 0</span>
                 </div>
                 <div class="flex items-center justify-between border-t border-stone-200 pt-2 text-base font-extrabold">
                     <span>Total</span><span id="cartTotalPrice" class="text-lg text-caramel">Rp 0</span>
@@ -1376,7 +1387,8 @@
     <!-- SCRIPT -->
     <script>
         const CART_KEY = 'brewNestCart';
-        const TAX_RATE = 0.11;
+        // Persentase pajak diambil dari Admin > Settings
+        const TAX_RATE = @json($taxPercent / 100);
         const FALLBACK_IMG = 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&w=800&q=80';
 
         // Gambar gagal dimuat -> ganti dengan gambar cadangan (sekali saja)
