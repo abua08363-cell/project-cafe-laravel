@@ -13,6 +13,8 @@ use Illuminate\View\View;
 
 class SettingController extends Controller
 {
+    private const PAYMENT_KEYS = ['pay_qris', 'pay_cash', 'pay_transfer'];
+
     public function index(): View
     {
         return view('admin.settings.index', [
@@ -35,14 +37,31 @@ class SettingController extends Controller
             'contact_email'  => ['nullable', 'email', 'max:255'],
             'store_address'  => ['nullable', 'string', 'max:500'],
 
-            'pay_qris'       => ['nullable', 'boolean'],
-            'pay_cash'       => ['nullable', 'boolean'],
-            'pay_transfer'   => ['nullable', 'boolean'],
+            // Dibaca lewat $request->boolean() di bawah, jadi nilai checkbox
+            // "on" maupun "1" sama-sama diterima.
+            'pay_qris'       => ['nullable'],
+            'pay_cash'       => ['nullable'],
+            'pay_transfer'   => ['nullable'],
 
             'username'       => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($user->id)],
             'email'          => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password'       => ['nullable', 'string', 'min:6'],
         ]);
+
+        // ===== Minimal satu metode pembayaran harus aktif =====
+        $activeMethods = array_filter(
+            self::PAYMENT_KEYS,
+            fn (string $key): bool => $request->boolean($key)
+        );
+
+        if ($activeMethods === []) {
+            $message = 'Aktifkan minimal satu metode pembayaran, supaya pelanggan tetap bisa checkout.';
+
+            return back()
+                ->withInput()
+                ->withErrors(['payment_methods' => $message])
+                ->with('error', $message);
+        }
 
         // ===== Simpan pengaturan kedai =====
         $textKeys = [
@@ -58,7 +77,7 @@ class SettingController extends Controller
         }
 
         // ===== Metode pembayaran (selalu simpan 1 / 0) =====
-        foreach (['pay_qris', 'pay_cash', 'pay_transfer'] as $key) {
+        foreach (self::PAYMENT_KEYS as $key) {
             Setting::query()->updateOrCreate(
                 ['key' => $key],
                 ['value' => $request->boolean($key) ? 1 : 0]

@@ -34,13 +34,28 @@
         'other' => ['label' => 'Lainnya', 'color' => '#a8a29e', 'badge' => 'bg-stone-100 text-stone-600', 'count' => 0],
     ];
     
-    $sumTotal = 0.0;
-    foreach ($orders as $o) {
-        $groups[$statusGroup($o['payment_status'] ?? ($o['status'] ?? 'pending'))]['count']++;
-        $sumTotal += (float) ($o['total'] ?? 0);
+    // Pakai angka dari seluruh pesanan kalau controller mengirimnya
+    $useAll = isset($status_counts) && is_array($status_counts);
+    
+    if ($useAll) {
+        $groups['success']['count'] = (int) ($status_counts['completed'] ?? 0);
+        $groups['process']['count'] = (int) ($status_counts['processing'] ?? 0);
+        $groups['pending']['count'] = (int) ($status_counts['pending'] ?? 0);
+        $groups['failed']['count'] = (int) ($status_counts['cancelled'] ?? 0);
+    
+        $orderCount = array_sum(array_column($groups, 'count'));
+        $sumTotal = (float) ($order_value ?? 0);
+        $avgTotal = (float) ($order_avg ?? 0);
+    } else {
+        // Cadangan: hitung dari 5 pesanan terbaru seperti sebelumnya
+        $sumTotal = 0.0;
+        foreach ($orders as $o) {
+            $groups[$statusGroup($o['payment_status'] ?? ($o['status'] ?? 'pending'))]['count']++;
+            $sumTotal += (float) ($o['total'] ?? 0);
+        }
+        $orderCount = count($orders);
+        $avgTotal = $orderCount ? $sumTotal / $orderCount : 0;
     }
-    $orderCount = count($orders);
-    $avgTotal = $orderCount ? $sumTotal / $orderCount : 0;
     
     // Donat SVG (r = 40, keliling = 2 * M_PI * 40 ≈ 251.33)
     $C = 2 * M_PI * 40;

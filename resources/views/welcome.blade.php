@@ -18,6 +18,9 @@
     $taxPercent = (float) $s('tax_percentage', 11);
     $taxLabel = rtrim(rtrim(number_format($taxPercent, 2, '.', ''), '0'), '.');
 
+    // Logo kedai (public/kopi.jpeg, sama dengan ikon tab browser)
+    $hasLogo = is_file(public_path('kopi.jpeg'));
+
     // Mendukung array maupun Eloquent model / stdClass
     $toArr = fn($row) => is_array($row) ? $row : (method_exists($row, 'toArray') ? $row->toArray() : (array) $row);
 
@@ -746,13 +749,16 @@
                         <use href="#i-phone" />
                     </svg> {{ $storePhone }}</span>
                 <span class="flex items-center gap-3">
-                    <a href="#" aria-label="Facebook" class="hover:text-tan"><svg class="ic h-3.5 w-3.5">
+                    <a href="https://www.facebook.com/brewnestphilly" aria-label="Facebook"
+                        class="hover:text-tan"><svg class="ic h-3.5 w-3.5">
                             <use href="#i-facebook" />
                         </svg></a>
-                    <a href="#" aria-label="Instagram" class="hover:text-tan"><svg class="ic h-3.5 w-3.5">
+                    <a href="https://www.instagram.com/brewnestphilly" aria-label="Instagram"
+                        class="hover:text-tan"><svg class="ic h-3.5 w-3.5">
                             <use href="#i-instagram" />
                         </svg></a>
-                    <a href="#" aria-label="Twitter" class="hover:text-tan"><svg class="ic h-3.5 w-3.5">
+                    <a href="https://x.com/brewnestphilly" aria-label="Twitter" class="hover:text-tan"><svg
+                            class="ic h-3.5 w-3.5">
                             <use href="#i-twitter" />
                         </svg></a>
                 </span>
@@ -1200,7 +1206,8 @@
             <div class="mb-4 flex items-center justify-between">
                 <h3 class="font-display text-lg font-semibold">Ikuti Kami <span
                         class="font-sans text-sm font-bold">@@brewnest.coffee</span></h3>
-                <a href="#" class="flex items-center gap-2 text-xs font-semibold hover:text-caramel">Lihat Semua
+                <a href="https://brewnest.coffee/"
+                    class="flex items-center gap-2 text-xs font-semibold hover:text-caramel">Lihat Semua
                     <svg class="ic h-4 w-4">
                         <use href="#i-arrow" />
                     </svg></a>
@@ -1241,17 +1248,17 @@
                 </a>
                 <p class="mt-4 max-w-[16rem] text-xs leading-relaxed">{{ $storeTagline }}</p>
                 <div class="mt-5 flex gap-2">
-                    <a href="#" aria-label="Facebook"
+                    <a href="https://www.facebook.com/brewnestphilly" aria-label="Facebook"
                         class="grid h-8 w-8 place-items-center rounded-full border border-white/30 transition hover:border-tan hover:text-tan"><svg
                             class="ic h-3.5 w-3.5">
                             <use href="#i-facebook" />
                         </svg></a>
-                    <a href="#" aria-label="Instagram"
+                    <a href="https://www.instagram.com/brewnestphilly" aria-label="Instagram"
                         class="grid h-8 w-8 place-items-center rounded-full border border-white/30 transition hover:border-tan hover:text-tan"><svg
                             class="ic h-3.5 w-3.5">
                             <use href="#i-instagram" />
                         </svg></a>
-                    <a href="#" aria-label="Twitter"
+                    <a href="https://x.com/brewnestphilly" aria-label="Twitter"
                         class="grid h-8 w-8 place-items-center rounded-full border border-white/30 transition hover:border-tan hover:text-tan"><svg
                             class="ic h-3.5 w-3.5">
                             <use href="#i-twitter" />
@@ -1308,19 +1315,20 @@
                 </ul>
             </div>
 
-            <div class="col-span-2 lg:col-span-1">
-                <h4 class="mb-4 text-xs font-bold text-white">Newsletter</h4>
-                <p class="mb-3 text-xs leading-relaxed">Berlangganan untuk dapat penawaran spesial dan kabar terbaru.
-                </p>
-                <form id="newsletterForm" class="flex overflow-hidden rounded-md bg-paper" novalidate>
-                    <input type="email" id="newsletterEmail" placeholder="Masukkan emailmu" aria-label="Email"
-                        class="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-base text-coffee placeholder:text-stone-400 focus:outline-none sm:text-xs">
-                    <button type="submit"
-                        class="grid w-11 place-items-center bg-caramel text-white transition hover:bg-brown"
-                        aria-label="Berlangganan"><svg class="ic h-4 w-4">
-                            <use href="#i-arrow" />
-                        </svg></button>
-                </form>
+            <!-- Logo kedai (menggantikan form newsletter) -->
+            <div class="col-span-2 flex flex-col items-start lg:col-span-1 lg:items-end">
+                <div class="grid h-28 w-28 place-items-center overflow-hidden rounded-2xl bg-paper p-1.5 shadow-lg shadow-black/30 ring-1 ring-caramel/40"
+                    role="img" aria-label="Logo {{ $storeName }}">
+                    @if ($hasLogo)
+                        <img src="{{ asset('kopi.jpeg') }}" alt="" data-fb="1" loading="lazy"
+                            class="h-full w-full rounded-xl object-cover"
+                            onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
+                    @endif
+                    <svg class="ic {{ $hasLogo ? 'hidden' : '' }} h-12 w-12 text-coffee">
+                        <use href="#i-coffee" />
+                    </svg>
+                </div>
+                <p class="mt-3 font-display text-sm italic text-tan lg:text-right">Good Coffee, Good Vibes</p>
             </div>
         </div>
 
@@ -1725,18 +1733,6 @@
                 behavior: 'smooth'
             }));
         }
-
-        /* Newsletter (baru validasi di sisi browser) */
-        document.getElementById('newsletterForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const input = document.getElementById('newsletterEmail');
-            if (!input.value.trim() || !input.checkValidity()) {
-                showToast('Masukkan alamat email yang valid.');
-                return;
-            }
-            input.value = '';
-            showToast('Terima kasih sudah berlangganan!');
-        });
 
         updateCartCount();
     </script>

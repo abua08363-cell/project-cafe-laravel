@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\Review;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,30 +12,37 @@ class OrderController extends Controller
 {
     public function index(): View
     {
-        // Ambil seluruh data pesanan beserta relasi item menu dan review
+        // Seluruh pesanan beserta item menu dan ulasannya
         $orders = Order::with(['items.menu', 'review'])
-            ->withCount('items')
             ->latest()
             ->get();
 
-        // 1. Total Transaksi (jumlah seluruh pesanan)
+        // 1. Total transaksi
         $totalTransaksi = $orders->count();
 
-        // 2. Total Pendapatan (menghitung total_price dari seluruh pesanan atau yang statusnya selesai/completed)
-        // Jika ingin menghitung dari semua pesanan yang masuk, gunakan sum('total_price') langsung
-        $totalPendapatan = $orders->sum('total_price');
+        // 2. Total pendapatan: semua pesanan kecuali yang dibatalkan.
+        //    Kalau ingin hanya yang selesai, ganti kondisinya menjadi:
+        //    strtolower((string) $order->status) === 'completed'
+        $totalPendapatan = $orders
+            ->filter(fn ($order): bool => strtolower((string) $order->status) !== 'cancelled')
+            ->sum('total_price');
 
-        // 3. Rata-rata Rating dan jumlah ulasan
-        $avgRating = Review::avg('rating') ?? 0;
-        $totalReviews = Review::count();
+        // 3. Rating dihitung dari ulasan yang sama dengan yang tampil di tabel,
+        //    jadi angka kartu selalu cocok dengan isi tabel.
+        $reviews = $orders->pluck('review')->filter();
 
-        return view('admin.orders.history', compact(
-            'orders', 
-            'totalTransaksi', 
-            'totalPendapatan', 
-            'avgRating', 
-            'totalReviews'
-        ));
+        $totalReviewCount = $reviews->count();
+        $avgRating = $totalReviewCount > 0 ? (float) $reviews->avg('rating') : 0.0;
+
+        return view('admin.orders.history', [
+            'orders'           => $orders,
+            'totalTransaksi'   => $totalTransaksi,
+            'totalPendapatan'  => $totalPendapatan,
+            'avgRating'        => $avgRating,
+            'totalReviewCount' => $totalReviewCount,
+            // Nama lama tetap dikirim supaya view lain yang memakainya tidak error
+            'totalReviews'     => $totalReviewCount,
+        ]);
     }
 
     public function show(Order $order): View

@@ -1,6 +1,40 @@
 @extends('layout.template')
 
 @section('content')
+    @php
+        // Ubah nilai JSON / array / collection dari database menjadi array biasa
+        $toArray = static function ($value): array {
+            if (is_array($value)) {
+                return $value;
+            }
+            if ($value instanceof \Illuminate\Support\Collection) {
+                return $value->all();
+            }
+            if (is_string($value) && $value !== '') {
+                $decoded = json_decode($value, true);
+
+                return is_array($decoded) ? $decoded : [];
+            }
+
+            return [];
+        };
+
+        // Label untuk penilaian per aspek (kunci sesuai yang disimpan saat ulasan dikirim)
+        $aspectLabels = [
+            'rasa' => 'Rasa',
+            'pelayanan' => 'Pelayanan',
+            'kecepatan' => 'Kecepatan',
+            'suasana' => 'Suasana',
+        ];
+
+        $statusLabels = [
+            'completed' => ['label' => 'SELESAI', 'class' => 'bg-emerald-100 text-emerald-800'],
+            'processing' => ['label' => 'DIPROSES', 'class' => 'bg-blue-100 text-blue-800'],
+            'cancelled' => ['label' => 'DIBATALKAN', 'class' => 'bg-red-100 text-red-800'],
+            'pending' => ['label' => 'PENDING', 'class' => 'bg-amber-100 text-amber-800'],
+        ];
+    @endphp
+
     <div class="mx-auto max-w-7xl space-y-6">
 
         {{-- Judul & Sambutan --}}
@@ -16,26 +50,22 @@
             </p>
         </div>
 
-        {{-- Statistik Card (Mirip CI4) --}}
+        {{-- Statistik --}}
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
             {{-- Total Transaksi --}}
             <div class="flex items-center rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-                <div class="mr-4 rounded-xl bg-amber-50 p-3 text-amber-600">
-                    📋
-                </div>
+                <div class="mr-4 rounded-xl bg-amber-50 p-3 text-amber-600">📋</div>
                 <div>
-                    <p class="text-xs uppercase tracking-wider text-stone-500 font-semibold">Total Transaksi</p>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">Total Transaksi</p>
                     <h3 class="text-2xl font-bold text-stone-800">{{ $totalTransaksi ?? 0 }}</h3>
                 </div>
             </div>
 
             {{-- Total Pendapatan --}}
             <div class="flex items-center rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-                <div class="mr-4 rounded-xl bg-emerald-50 p-3 text-emerald-600">
-                    💰
-                </div>
+                <div class="mr-4 rounded-xl bg-emerald-50 p-3 text-emerald-600">💰</div>
                 <div>
-                    <p class="text-xs uppercase tracking-wider text-stone-500 font-semibold">Total Pendapatan</p>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">Total Pendapatan</p>
                     <h3 class="text-2xl font-bold text-stone-800">Rp
                         {{ number_format((float) ($totalPendapatan ?? 0), 0, ',', '.') }}</h3>
                 </div>
@@ -43,13 +73,12 @@
 
             {{-- Rata-rata Rating --}}
             <div class="flex items-center rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-                <div class="mr-4 rounded-xl bg-yellow-50 p-3 text-yellow-600">
-                    ⭐
-                </div>
+                <div class="mr-4 rounded-xl bg-yellow-50 p-3 text-yellow-600">⭐</div>
                 <div>
-                    <p class="text-xs uppercase tracking-wider text-stone-500 font-semibold">Rata-rata Rating
+                    <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">Rata-rata Rating
                         ({{ $totalReviewCount ?? 0 }} ulasan)</p>
-                    <h3 class="text-2xl font-bold text-stone-800">{{ number_format((float) ($avgRating ?? 0), 1) }} / 5</h3>
+                    <h3 class="text-2xl font-bold text-stone-800">{{ number_format((float) ($avgRating ?? 0), 1) }} / 5
+                    </h3>
                 </div>
             </div>
         </div>
@@ -71,7 +100,7 @@
                         <th class="px-5 py-4">Nama Pemesan</th>
                         <th class="px-5 py-4">Item Menu</th>
                         <th class="px-5 py-4">Total Bayar</th>
-                        <th class="px-5 py-4">Ulasan & Rating</th>
+                        <th class="px-5 py-4">Ulasan &amp; Rating</th>
                         <th class="px-5 py-4">Status Pembayaran</th>
                         <th class="px-5 py-4">Aksi</th>
                     </tr>
@@ -79,6 +108,22 @@
 
                 <tbody class="divide-y divide-stone-100">
                     @forelse ($orders as $order)
+                        @php
+                            $review = $order->review ?? null;
+                            $rating = (int) ($review->rating ?? 0);
+                            $comment = $review->comment ?? null;
+
+                            $tags = $review ? $toArray($review->tags ?? null) : [];
+                            $aspects = $review ? $toArray($review->aspects ?? null) : [];
+                            $itemRatings = $review ? $toArray($review->item_ratings ?? null) : [];
+
+                            $status = strtolower((string) ($order->status ?? 'pending'));
+                            $currentStatus = $statusLabels[$status] ?? [
+                                'label' => strtoupper($status),
+                                'class' => 'bg-stone-100 text-stone-800',
+                            ];
+                        @endphp
+
                         <tr class="align-top hover:bg-stone-50">
 
                             {{-- Nomor meja --}}
@@ -90,19 +135,22 @@
 
                             {{-- Nama pemesan --}}
                             <td class="px-5 py-5">
-                                <p class="font-semibold text-stone-800">
-                                    {{ $order->customer_name }}
-                                </p>
+                                <p class="font-semibold text-stone-800">{{ $order->customer_name }}</p>
                             </td>
 
-                            {{-- Item menu --}}
+                            {{-- Item menu (+ bintang per menu kalau ada) --}}
                             <td class="px-5 py-5">
                                 @forelse ($order->items as $item)
+                                    @php
+                                        $menuStar = $itemRatings[$item->menu_id] ?? null;
+                                    @endphp
                                     <p class="mb-1 text-stone-700">
                                         {{ $item->menu->name ?? ($item->menu->title ?? 'Menu') }}
-                                        <span class="text-stone-400">
-                                            (x{{ $item->quantity }})
-                                        </span>
+                                        <span class="text-stone-400">(x{{ $item->quantity }})</span>
+                                        @if (is_numeric($menuStar) && (int) $menuStar > 0)
+                                            <span class="ml-1 whitespace-nowrap text-xs font-semibold text-amber-600"
+                                                title="Rating menu ini">★ {{ (int) $menuStar }}/5</span>
+                                        @endif
                                     </p>
                                 @empty
                                     <span class="text-stone-400">Tidak ada item</span>
@@ -115,20 +163,7 @@
                             </td>
 
                             {{-- Ulasan dan rating --}}
-                            {{-- Ulasan dan rating --}}
                             <td class="px-5 py-5">
-                                @php
-                                    $review = $order->review ?? null;
-                                    $rating = (int) ($review->rating ?? 0);
-                                    $comment = $review->comment ?? null;
-
-                                    // Ambil data tags (jika disimpan sebagai JSON/Array di database)
-                                    $tags = $review->tags ?? [];
-                                    if (is_string($tags)) {
-                                        $tags = json_decode($tags, true) ?? [];
-                                    }
-                                @endphp
-
                                 @if ($review)
                                     <div class="flex items-center space-x-2 whitespace-nowrap">
                                         <span class="text-amber-500">
@@ -136,70 +171,63 @@
                                                 {{ $i <= $rating ? '★' : '☆' }}
                                             @endfor
                                         </span>
-                                        <span class="font-semibold text-amber-700">
-                                            {{ $rating }}/5
-                                        </span>
+                                        <span class="font-semibold text-amber-700">{{ $rating }}/5</span>
 
-                                        {{-- Badge Anonim --}}
                                         @if ($review->anonymous)
                                             <span
                                                 class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">Anonim</span>
                                         @endif
                                     </div>
 
-                                    {{-- Komentar ulasan --}}
-                                    @if ($comment)
-                                        <p class="mt-1 max-w-xs text-stone-600 italic">
-                                            "{{ $comment }}"
-                                        </p>
+                                    {{-- Penilaian per aspek --}}
+                                    @php
+                                        $shownAspects = [];
+                                        foreach ($aspectLabels as $key => $label) {
+                                            $val = $aspects[$key] ?? null;
+                                            if (is_numeric($val) && (int) $val > 0) {
+                                                $shownAspects[$label] = (int) $val;
+                                            }
+                                        }
+                                    @endphp
+                                    @if ($shownAspects)
+                                        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-600">
+                                            @foreach ($shownAspects as $label => $val)
+                                                <span class="whitespace-nowrap">{{ $label }}
+                                                    <span class="font-semibold text-amber-600">★ {{ $val }}</span>
+                                                </span>
+                                            @endforeach
+                                        </div>
                                     @endif
 
-                                    {{-- Badge Tags Ulasan (Penyajian cepat, Harga sepadan, dll) --}}
+                                    {{-- Komentar --}}
+                                    @if ($comment)
+                                        <p class="mt-2 max-w-xs italic text-stone-600">"{{ $comment }}"</p>
+                                    @endif
+
+                                    {{-- Tags --}}
                                     @if (!empty($tags))
                                         <div class="mt-2 flex flex-wrap gap-1">
                                             @foreach ($tags as $tag)
                                                 <span
-                                                    class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 border border-amber-200">
+                                                    class="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
                                                     {{ $tag }}
                                                 </span>
                                             @endforeach
                                         </div>
                                     @endif
                                 @else
-                                    <span class="italic text-stone-400">
-                                        Belum diulas
-                                    </span>
+                                    <span class="italic text-stone-400">Belum diulas</span>
                                 @endif
                             </td>
 
-                            {{-- Status pembayaran --}}
-                            {{-- Status pembayaran / pesanan --}}
+                            {{-- Status pesanan --}}
                             <td class="px-5 py-5">
-                                @php
-                                    $status = strtolower($order->status ?? 'pending');
-
-                                    // Mapping label dan warna badge
-                                    $statusLabels = [
-                                        'completed' => [
-                                            'label' => 'SELESAI',
-                                            'class' => 'bg-emerald-100 text-emerald-800',
-                                        ],
-                                        'processing' => ['label' => 'DIPROSES', 'class' => 'bg-blue-100 text-blue-800'],
-                                        'cancelled' => ['label' => 'DIBATALKAN', 'class' => 'bg-red-100 text-red-800'],
-                                        'pending' => ['label' => 'PENDING', 'class' => 'bg-amber-100 text-amber-800'],
-                                    ];
-
-                                    $currentStatus = $statusLabels[$status] ?? [
-                                        'label' => strtoupper($status),
-                                        'class' => 'bg-stone-100 text-stone-800',
-                                    ];
-                                @endphp
-
                                 <span
                                     class="inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $currentStatus['class'] }}">
                                     {{ $currentStatus['label'] }}
                                 </span>
                             </td>
+
                             {{-- Aksi --}}
                             <td class="px-5 py-5">
                                 <a href="{{ route('admin.orders.show', $order) }}"

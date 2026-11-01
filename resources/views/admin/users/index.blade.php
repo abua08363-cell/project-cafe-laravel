@@ -8,10 +8,13 @@
             ->values()
             ->all();
 
-        // Owner = role "staff" (sama seperti versi CI4)
-        $isOwner = $isOwner ?? session('role') === 'staff';
+        // Owner = role "staff". Dibaca dari user yang login, session hanya cadangan.
+        $isOwner = $isOwner ?? (optional(auth()->user())->role ?? session('role')) === 'staff';
 
-        // Ringkasan kecil untuk kartu statistik
+        // ID akun yang sedang login (dipakai untuk menyembunyikan tombol Hapus akun sendiri)
+        $currentId = (int) auth()->id();
+
+        // Ringkasan
         $totalUsers = count($users);
         $totalOwner = 0;
         $totalAdmin = 0;
@@ -25,144 +28,11 @@
     @endphp
 
     <style>
-        /* ===== Animasi masuk ===== */
-        @keyframes bn-rise {
+        /* Satu gerakan saat halaman dibuka: baris tabel muncul bergantian */
+        @keyframes bn-row-in {
             from {
                 opacity: 0;
-                transform: translateY(18px) scale(.985);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .bn-in {
-            opacity: 0;
-            animation: bn-rise .6s cubic-bezier(.22, 1, .36, 1) forwards;
-            animation-delay: calc(var(--i, 0) * 80ms);
-        }
-
-        /* Baris tabel masuk satu per satu */
-        @keyframes bn-row {
-            from {
-                opacity: 0;
-                transform: translateX(-16px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .bn-row {
-            opacity: 0;
-            animation: bn-row .5s cubic-bezier(.22, 1, .36, 1) forwards;
-            animation-delay: calc(400ms + var(--r, 0) * 55ms);
-            transition: background-color .25s, box-shadow .25s;
-            position: relative;
-        }
-
-        .bn-row:hover {
-            background-color: #fbf6f2;
-            box-shadow: inset 4px 0 0 #754a30;
-        }
-
-        .bn-row.is-hidden {
-            display: none;
-        }
-
-        /* Avatar */
-        .bn-avatar {
-            transition: transform .35s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s;
-        }
-
-        .bn-row:hover .bn-avatar {
-            transform: scale(1.15) rotate(-4deg);
-            box-shadow: 0 6px 16px -6px rgba(117, 74, 48, .5);
-        }
-
-        /* Tombol kembali / tambah */
-        .bn-btn {
-            position: relative;
-            overflow: hidden;
-            transition: transform .25s, box-shadow .25s, background-color .25s;
-        }
-
-        .bn-btn::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%);
-            transform: translateX(-120%);
-        }
-
-        .bn-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 24px -10px rgba(117, 74, 48, .6);
-        }
-
-        .bn-btn:hover::after {
-            transform: translateX(120%);
-            transition: transform .7s ease;
-        }
-
-        .bn-btn:active {
-            transform: translateY(0) scale(.97);
-        }
-
-        .bn-btn .bn-plus {
-            display: inline-block;
-            transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
-        }
-
-        .bn-btn:hover .bn-plus {
-            transform: rotate(90deg) scale(1.2);
-        }
-
-        /* Tombol aksi di baris */
-        .bn-act {
-            transition: transform .2s, box-shadow .2s, background-color .2s;
-        }
-
-        .bn-act:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px -8px rgba(0, 0, 0, .35);
-        }
-
-        .bn-act:active {
-            transform: scale(.95);
-        }
-
-        /* Kartu statistik */
-        .bn-stat {
-            transition: transform .3s cubic-bezier(.22, 1, .36, 1), box-shadow .3s, border-color .3s;
-        }
-
-        .bn-stat:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 14px 28px -14px rgba(117, 74, 48, .45);
-            border-color: #e3cdbd;
-        }
-
-        /* Search */
-        .bn-search {
-            transition: border-color .25s, box-shadow .25s, width .3s;
-        }
-
-        .bn-search:focus {
-            border-color: #754a30;
-            box-shadow: 0 0 0 4px rgba(117, 74, 48, .15);
-            outline: none;
-        }
-
-        /* Alert flash */
-        @keyframes bn-alert-in {
-            from {
-                opacity: 0;
-                transform: translateY(-12px);
+                transform: translateY(6px);
             }
 
             to {
@@ -171,112 +41,75 @@
             }
         }
 
+        .bn-row {
+            animation: bn-row-in .35s ease-out both;
+            animation-delay: calc(min(var(--r, 0), 10) * 35ms);
+            transition: background-color .15s;
+        }
+
+        .bn-row:hover {
+            background-color: #faf6f3;
+        }
+
+        .bn-row.is-hidden {
+            display: none;
+        }
+
+        /* Alert flash */
         .bn-alert {
-            animation: bn-alert-in .5s cubic-bezier(.34, 1.56, .64, 1) both;
-            transition: opacity .4s, transform .4s, max-height .4s, margin .4s, padding .4s;
-            max-height: 200px;
+            transition: opacity .3s, transform .3s;
         }
 
         .bn-alert.is-closing {
             opacity: 0;
-            transform: translateX(30px);
-            max-height: 0;
-            margin: 0;
-            padding-top: 0;
-            padding-bottom: 0;
-            overflow: hidden;
+            transform: translateY(-6px);
         }
 
-        /* Empty state */
-        @keyframes bn-float {
+        /* Fokus keyboard yang jelas */
+        .bn-focus:focus-visible {
+            outline: 2px solid #754a30;
+            outline-offset: 2px;
+        }
 
-            0%,
-            100% {
-                transform: translateY(0) rotate(0);
+        /* Dialog hapus (native <dialog>: Esc dan fokus sudah ditangani browser) */
+        #delete-dialog {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            max-width: 100vw;
+            max-height: 100vh;
+            overflow: visible;
+        }
+
+        #delete-dialog::backdrop {
+            background: rgba(33, 20, 14, .55);
+        }
+
+        #delete-dialog[open] .bn-dialog-card {
+            animation: bn-dialog-in .22s ease-out both;
+        }
+
+        @keyframes bn-dialog-in {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(.97);
             }
 
-            50% {
-                transform: translateY(-8px) rotate(-4deg);
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
             }
-        }
-
-        .bn-float {
-            display: inline-block;
-            animation: bn-float 3s ease-in-out infinite;
-        }
-
-        /* Modal hapus */
-        .bn-modal-backdrop {
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity .25s;
-        }
-
-        .bn-modal-backdrop.is-open {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .bn-modal {
-            transform: translateY(20px) scale(.92);
-            opacity: 0;
-            transition: transform .35s cubic-bezier(.34, 1.56, .64, 1), opacity .25s;
-        }
-
-        .bn-modal-backdrop.is-open .bn-modal {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-        }
-
-        @keyframes bn-shake {
-
-            0%,
-            100% {
-                transform: rotate(0);
-            }
-
-            20% {
-                transform: rotate(-12deg);
-            }
-
-            40% {
-                transform: rotate(10deg);
-            }
-
-            60% {
-                transform: rotate(-8deg);
-            }
-
-            80% {
-                transform: rotate(6deg);
-            }
-        }
-
-        .bn-modal-backdrop.is-open .bn-shake {
-            animation: bn-shake .7s .25s ease;
         }
 
         @media (prefers-reduced-motion: reduce) {
 
-            .bn-in,
+            .bn-row,
+            #delete-dialog[open] .bn-dialog-card {
+                animation: none;
+            }
+
             .bn-row,
             .bn-alert {
-                animation: none;
-                opacity: 1;
-            }
-
-            .bn-float,
-            .bn-modal-backdrop.is-open .bn-shake {
-                animation: none;
-            }
-
-            .bn-row,
-            .bn-avatar,
-            .bn-btn,
-            .bn-act,
-            .bn-stat,
-            .bn-modal,
-            .bn-modal-backdrop {
                 transition: none;
             }
         }
@@ -284,173 +117,217 @@
 
     <div class="w-full">
 
-        <!-- Header & Tombol Tambah -->
-        <div class="bn-in mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" style="--i:0">
+        <!-- Header -->
+        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800 md:text-3xl">Daftar Partners / Users</h1>
-                <p class="text-sm text-gray-500">Kelola akun pengguna, Owner, atau partner yang terhubung dengan BrewNest
-                    Coffee.</p>
+                <h1 class="text-2xl font-bold text-stone-900 md:text-3xl">Partner &amp; User</h1>
+                <p class="mt-1 max-w-xl text-sm text-stone-500">Kelola akun Owner, admin, dan partner yang terhubung
+                    dengan BrewNest Coffee.</p>
             </div>
             <a href="{{ url('admin/users/create') }}"
-                class="bn-btn inline-flex items-center gap-2 self-start rounded-xl bg-[#754a30] px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-[#21140e] sm:self-auto">
-                <span class="bn-plus">➕</span> Tambah User
+                class="bn-focus inline-flex items-center gap-2 self-start rounded-lg bg-[#754a30] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#21140e] sm:self-auto">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
+                </svg>
+                Tambah user
             </a>
         </div>
 
-        <!-- Alert Notifikasi -->
+        <!-- Notifikasi -->
         @if (session('success'))
-            <div
-                class="bn-alert js-alert mb-4 flex items-start justify-between gap-3 rounded-xl bg-green-100 p-4 text-sm text-green-700">
+            <div role="status"
+                class="bn-alert js-alert mb-4 flex items-start justify-between gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
                 <span>{{ session('success') }}</span>
-                <button type="button" class="js-alert-close text-lg leading-none text-green-700/70 hover:text-green-900"
-                    aria-label="Tutup">&times;</button>
+                <button type="button"
+                    class="js-alert-close bn-focus text-lg leading-none text-green-800/60 hover:text-green-900"
+                    aria-label="Tutup notifikasi">&times;</button>
             </div>
         @endif
         @if (session('error'))
-            <div
-                class="bn-alert js-alert mb-4 flex items-start justify-between gap-3 rounded-xl bg-red-100 p-4 text-sm text-red-700">
+            <div role="alert"
+                class="bn-alert js-alert mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                 <span>{{ session('error') }}</span>
-                <button type="button" class="js-alert-close text-lg leading-none text-red-700/70 hover:text-red-900"
-                    aria-label="Tutup">&times;</button>
+                <button type="button"
+                    class="js-alert-close bn-focus text-lg leading-none text-red-800/60 hover:text-red-900"
+                    aria-label="Tutup notifikasi">&times;</button>
             </div>
         @endif
 
-        <!-- Kartu Ringkasan -->
-        <div class="mb-6 grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
-            <div class="bn-in bn-stat flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
-                style="--i:1">
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-xl text-[#754a30]">👥
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500">Total User</p>
-                    <p class="js-count text-2xl font-bold tabular-nums text-gray-800" data-to="{{ $totalUsers }}">0</p>
-                </div>
+        <!-- Ringkasan: satu bar, bukan tiga kartu -->
+        <dl class="mb-6 grid grid-cols-3 divide-x divide-stone-200 rounded-xl border border-stone-200 bg-white">
+            <div class="px-4 py-4 sm:px-6">
+                <dt class="text-xs text-stone-500">Total user</dt>
+                <dd class="mt-1 text-2xl font-bold tabular-nums text-stone-900 sm:text-3xl">{{ $totalUsers }}</dd>
             </div>
-            <div class="bn-in bn-stat flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
-                style="--i:2">
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-xl text-blue-700">☕</div>
-                <div>
-                    <p class="text-xs text-gray-500">Owner</p>
-                    <p class="js-count text-2xl font-bold tabular-nums text-gray-800" data-to="{{ $totalOwner }}">0</p>
-                </div>
+            <div class="px-4 py-4 sm:px-6">
+                <dt class="text-xs text-stone-500">Owner</dt>
+                <dd class="mt-1 text-2xl font-bold tabular-nums text-[#754a30] sm:text-3xl">{{ $totalOwner }}</dd>
             </div>
-            <div class="bn-in bn-stat flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
-                style="--i:3">
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-stone-100 text-xl text-stone-700">🛠️
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500">Admin &amp; Lainnya</p>
-                    <p class="js-count text-2xl font-bold tabular-nums text-gray-800" data-to="{{ $totalAdmin }}">0</p>
-                </div>
+            <div class="px-4 py-4 sm:px-6">
+                <dt class="text-xs text-stone-500">Admin &amp; lainnya</dt>
+                <dd class="mt-1 text-2xl font-bold tabular-nums text-stone-900 sm:text-3xl">{{ $totalAdmin }}</dd>
             </div>
-        </div>
+        </dl>
 
-        <!-- Tabel Users -->
-        <div class="bn-in w-full overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style="--i:4">
+        <!-- Tabel -->
+        <div class="w-full overflow-hidden rounded-xl border border-stone-200 bg-white">
 
-            <!-- Toolbar pencarian -->
+            <!-- Pencarian & filter -->
             <div
-                class="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
-                <div class="relative w-full sm:max-w-xs">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
-                        </svg>
-                    </span>
-                    <input id="user-search" type="search" placeholder="Cari nama, email, atau role..."
-                        class="bn-search w-full rounded-xl border border-gray-300 py-2 pl-9 pr-4 text-sm text-gray-800">
+                class="flex flex-col gap-3 border-b border-stone-200 p-4 md:flex-row md:items-center md:justify-between md:px-6">
+                <div class="flex w-full flex-col gap-3 sm:flex-row md:max-w-xl">
+                    <div class="relative w-full">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-400">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+                            </svg>
+                        </span>
+                        <label for="user-search" class="sr-only">Cari user</label>
+                        <input id="user-search" type="search" placeholder="Cari nama, email, atau role"
+                            class="bn-focus w-full rounded-lg border border-stone-300 py-2 pl-9 pr-3 text-sm text-stone-800 placeholder:text-stone-400 focus:border-[#754a30]">
+                    </div>
+                    <div class="sm:w-44">
+                        <label for="role-filter" class="sr-only">Filter role</label>
+                        <select id="role-filter"
+                            class="bn-focus w-full rounded-lg border border-stone-300 bg-white py-2 pl-3 pr-8 text-sm text-stone-800 focus:border-[#754a30]">
+                            <option value="all">Semua role</option>
+                            <option value="staff">Owner</option>
+                            <option value="admin">Admin</option>
+                            <option value="other">Lainnya</option>
+                        </select>
+                    </div>
                 </div>
-                <p class="text-xs text-gray-500">Menampilkan <span id="visible-count"
-                        class="font-semibold tabular-nums text-gray-700">{{ $totalUsers }}</span> dari {{ $totalUsers }}
-                    user</p>
+                <p class="text-xs text-stone-500" aria-live="polite">
+                    Menampilkan <span id="visible-count"
+                        class="font-semibold tabular-nums text-stone-800">{{ $totalUsers }}</span> dari
+                    {{ $totalUsers }} user
+                </p>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full border-collapse text-left">
                     <thead>
-                        <tr
-                            class="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                            <th class="px-6 py-4">No</th>
-                            <th class="px-6 py-4">Foto</th>
-                            <th class="px-6 py-4">Nama / Username</th>
-                            <th class="px-6 py-4">Email</th>
-                            <th class="px-6 py-4">Role / Level</th>
-                            <th class="px-6 py-4 text-center">Aksi</th>
+                        <tr class="border-b border-stone-200 bg-stone-50 text-xs font-medium text-stone-500">
+                            <th scope="col" class="w-14 px-4 py-3 md:px-6">No</th>
+                            <th scope="col" class="px-4 py-3 md:px-6">User</th>
+                            <th scope="col" class="hidden px-4 py-3 md:table-cell md:px-6">Email</th>
+                            <th scope="col" class="px-4 py-3 md:px-6">Role</th>
+                            <th scope="col" class="px-4 py-3 text-right md:px-6">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody id="user-body" class="divide-y divide-gray-100 text-sm text-gray-700">
+                    <tbody id="user-body" class="divide-y divide-stone-100 text-sm text-stone-700">
                         @forelse ($users as $user)
                             @php
                                 $displayName = $user['username'] ?? ($user['name'] ?? 'Admin');
                                 $roleKey = $user['role'] ?? 'admin';
-                                $roleLabel = $roleKey === 'staff' ? 'Owner' : ucfirst($user['role'] ?? 'Administrator');
+                                $roleLabel = $roleKey === 'staff' ? 'Owner' : ucfirst($roleKey ?: 'Administrator');
+                                $roleGroup = in_array($roleKey, ['staff', 'admin'], true) ? $roleKey : 'other';
+                                $roleClass = match ($roleKey) {
+                                    'staff' => 'bg-[#754a30] text-white',
+                                    'admin' => 'bg-amber-100 text-[#754a30]',
+                                    default => 'bg-stone-100 text-stone-700',
+                                };
                                 $searchText = mb_strtolower(
                                     $displayName . ' ' . ($user['email'] ?? '') . ' ' . $roleLabel,
                                 );
-                                $hasPhoto =
-                                    !empty($user['photo']) &&
-                                    file_exists(public_path('uploads/users/' . $user['photo']));
+
+                                // Akun yang sedang login
+                                $isSelf = (int) ($user['id'] ?? 0) === $currentId;
+
+                                // Owner boleh mengelola semua; selain Owner tidak boleh menyentuh akun Owner
+                                $canManage = $isOwner || $roleKey !== 'staff';
+
+                                $photoFile = !empty($user['photo']) ? basename($user['photo']) : null;
+                                $hasPhoto = $photoFile && is_file(public_path('uploads/users/' . $photoFile));
                             @endphp
-                            <tr class="bn-row js-row" style="--r:{{ $loop->index }}" data-search="{{ $searchText }}">
-                                <td class="px-6 py-4 font-semibold tabular-nums text-gray-900">{{ $loop->iteration }}</td>
+                            <tr class="bn-row js-row" style="--r:{{ $loop->index }}" data-search="{{ $searchText }}"
+                                data-role="{{ $roleGroup }}">
+                                <td class="px-4 py-3 tabular-nums text-stone-500 md:px-6">{{ $loop->iteration }}</td>
 
-                                <!-- Foto Profile / Avatar Inisial -->
-                                <td class="px-6 py-4">
-                                    @if ($hasPhoto)
-                                        <img src="{{ asset('uploads/users/' . $user['photo']) }}" alt="Foto Profil"
-                                            class="bn-avatar h-10 w-10 rounded-full border border-gray-200 object-cover">
-                                    @else
-                                        <div
-                                            class="bn-avatar flex h-10 w-10 items-center justify-center rounded-full border border-amber-200 bg-amber-100 text-sm font-bold text-[#754a30]">
-                                            {{ mb_strtoupper(mb_substr($displayName, 0, 1)) }}
+                                <!-- Foto + nama (+ email di layar kecil) -->
+                                <td class="px-4 py-3 md:px-6">
+                                    <div class="flex items-center gap-3">
+                                        @if ($hasPhoto)
+                                            <img src="{{ asset('uploads/users/' . $photoFile) }}"
+                                                alt="Foto {{ $displayName }}"
+                                                class="h-10 w-10 shrink-0 rounded-full border border-stone-200 object-cover">
+                                        @else
+                                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-sm font-bold text-[#754a30]"
+                                                aria-hidden="true">
+                                                {{ mb_strtoupper(mb_substr($displayName, 0, 1)) }}
+                                            </div>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <p class="flex items-center gap-2 font-medium text-stone-900">
+                                                <span class="truncate">{{ $displayName }}</span>
+                                                @if ($isSelf)
+                                                    <span
+                                                        class="shrink-0 rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-600">Anda</span>
+                                                @endif
+                                            </p>
+                                            <p class="truncate text-xs text-stone-500 md:hidden">
+                                                {{ $user['email'] ?? '-' }}</p>
                                         </div>
-                                    @endif
+                                    </div>
                                 </td>
 
-                                <td class="px-6 py-4 font-medium text-gray-900">{{ $displayName }}</td>
-                                <td class="px-6 py-4">{{ $user['email'] ?? '-' }}</td>
-                                <td class="px-6 py-4">
+                                <td class="hidden px-4 py-3 md:table-cell md:px-6">{{ $user['email'] ?? '-' }}</td>
+
+                                <td class="px-4 py-3 md:px-6">
                                     <span
-                                        class="inline-block rounded-full px-3 py-1 text-xs font-semibold {{ $roleKey === 'admin' ? 'bg-amber-100 text-[#754a30]' : 'bg-blue-100 text-blue-700' }}">
-                                        {{ $roleLabel }}
-                                    </span>
+                                        class="inline-block rounded-full px-2.5 py-1 text-xs font-semibold {{ $roleClass }}">{{ $roleLabel }}</span>
                                 </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex items-center justify-center gap-2">
-                                        @if ($isOwner || ($user['role'] ?? '') !== 'staff')
+
+                                <td class="px-4 py-3 md:px-6">
+                                    <div class="flex items-center justify-end gap-2">
+                                        @if ($canManage)
                                             <a href="{{ url('admin/users/' . $user['id'] . '/edit') }}"
-                                                class="bn-act rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600">
+                                                class="bn-focus rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 transition-colors hover:bg-stone-100">
                                                 Edit
                                             </a>
-                                            <button type="button" data-action="{{ url('admin/users/' . $user['id']) }}"
-                                                data-name="{{ $displayName }}"
-                                                class="js-delete bn-act rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700">
-                                                Hapus
-                                            </button>
+
+                                            @if ($isSelf)
+                                                {{-- Akun sendiri: tombol Hapus tidak dirender --}}
+                                                <span aria-disabled="true"
+                                                    title="Kamu tidak bisa menghapus akunmu sendiri"
+                                                    class="cursor-not-allowed rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-400">
+                                                    Hapus
+                                                </span>
+                                            @else
+                                                <button type="button"
+                                                    data-action="{{ url('admin/users/' . $user['id']) }}"
+                                                    data-name="{{ $displayName }}"
+                                                    class="js-delete bn-focus rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">
+                                                    Hapus
+                                                </button>
+                                            @endif
                                         @else
-                                            <span class="text-xs italic text-gray-400">Khusus Owner</span>
+                                            <span class="text-xs italic text-stone-400">Khusus Owner</span>
                                         @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="py-14 text-center text-stone-500">
-                                    <span class="bn-float text-4xl">☕</span>
-                                    <p class="mt-3 italic">Belum ada data partner atau user terdaftar.</p>
+                                <td colspan="5" class="px-6 py-14 text-center">
+                                    <p class="font-medium text-stone-800">Belum ada user terdaftar</p>
+                                    <p class="mt-1 text-sm text-stone-500">Tambahkan akun pertama untuk mulai
+                                        mengelola partner dan admin.</p>
                                     <a href="{{ url('admin/users/create') }}"
-                                        class="mt-4 inline-block rounded-lg bg-[#754a30] px-4 py-2 text-xs font-semibold not-italic text-white transition hover:bg-[#21140e]">Tambah
+                                        class="bn-focus mt-4 inline-block rounded-lg bg-[#754a30] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#21140e]">Tambah
                                         user pertama</a>
                                 </td>
                             </tr>
                         @endforelse
 
-                        <!-- Muncul saat pencarian tidak menemukan hasil -->
+                        <!-- Muncul saat pencarian/filter tidak menemukan hasil -->
                         <tr id="no-result" class="hidden">
-                            <td colspan="6" class="py-12 text-center text-stone-500">
-                                <span class="bn-float text-3xl">🔍</span>
-                                <p class="mt-3 italic">Tidak ada user yang cocok dengan pencarian kamu.</p>
+                            <td colspan="5" class="px-6 py-12 text-center">
+                                <p class="font-medium text-stone-800">Tidak ada user yang cocok</p>
+                                <p class="mt-1 text-sm text-stone-500">Coba kata kunci lain atau ubah filter role.</p>
                             </td>
                         </tr>
                     </tbody>
@@ -460,122 +337,131 @@
 
     </div>
 
-    <!-- Modal Konfirmasi Hapus -->
-    <div id="delete-modal"
-        class="bn-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-        aria-hidden="true">
-        <div class="bn-modal w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl" role="dialog"
-            aria-modal="true" aria-labelledby="delete-title">
-            <div
-                class="bn-shake mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-2xl text-rose-600">
-                🗑️</div>
-            <h2 id="delete-title" class="mt-4 text-lg font-bold text-gray-800">Hapus user ini?</h2>
-            <p class="mt-1 text-sm text-gray-500">Akun <strong id="delete-name" class="text-gray-800"></strong> akan
-                dihapus dan tidak bisa dikembalikan.</p>
+    <!-- Dialog konfirmasi hapus -->
+    <dialog id="delete-dialog" aria-labelledby="delete-title">
+        <div class="bn-dialog-card mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <div class="flex h-11 w-11 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M3 6h18M8 6V4h8v2m-9 0l1 14h8l1-14M10 11v6m4-6v6" />
+                </svg>
+            </div>
+            <h2 id="delete-title" class="mt-4 text-lg font-bold text-stone-900">Hapus user ini?</h2>
+            <p class="mt-1 text-sm text-stone-500">Akun <strong id="delete-name" class="text-stone-900"></strong>
+                akan dihapus permanen dan tidak bisa dikembalikan.</p>
 
             <form id="delete-form" method="POST" action="#" class="mt-6 flex gap-3">
                 @csrf
                 @method('DELETE')
                 <button type="button" id="delete-cancel"
-                    class="bn-act flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100">Batal</button>
+                    class="bn-focus flex-1 rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 transition-colors hover:bg-stone-100">Batal</button>
                 <button type="submit" id="delete-confirm"
-                    class="bn-act flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700">Ya,
-                    hapus</button>
+                    class="bn-focus flex-1 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60">Hapus
+                    user</button>
             </form>
         </div>
-    </div>
+    </dialog>
 
     <script>
         (function() {
-            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            // ===== Hitung naik pada kartu statistik =====
-            document.querySelectorAll('.js-count').forEach(el => {
-                const to = parseInt(el.dataset.to, 10) || 0;
-                if (reduceMotion || to === 0) {
-                    el.textContent = to;
-                    return;
-                }
-                const duration = 900;
-                const start = performance.now() + 250;
-
-                function tick(now) {
-                    const t = Math.min(Math.max((now - start) / duration, 0), 1);
-                    const eased = 1 - Math.pow(1 - t, 3);
-                    el.textContent = Math.round(to * eased);
-                    if (t < 1) requestAnimationFrame(tick);
-                }
-                requestAnimationFrame(tick);
-            });
-
-            // ===== Alert: tutup manual + otomatis hilang =====
+            // ===== Notifikasi: tutup manual + hilang otomatis =====
             function closeAlert(el) {
                 el.classList.add('is-closing');
-                setTimeout(() => el.remove(), 450);
+                setTimeout(function() {
+                    el.remove();
+                }, 320);
             }
-            document.querySelectorAll('.js-alert').forEach(el => {
-                el.querySelector('.js-alert-close').addEventListener('click', () => closeAlert(el));
-                setTimeout(() => closeAlert(el), 6000);
+            document.querySelectorAll('.js-alert').forEach(function(el) {
+                var closeBtn = el.querySelector('.js-alert-close');
+                if (closeBtn) closeBtn.addEventListener('click', function() {
+                    closeAlert(el);
+                });
+                setTimeout(function() {
+                    closeAlert(el);
+                }, 6000);
             });
 
-            // ===== Pencarian =====
-            const search = document.getElementById('user-search');
-            const rows = Array.from(document.querySelectorAll('.js-row'));
-            const noResult = document.getElementById('no-result');
-            const visibleCount = document.getElementById('visible-count');
+            // ===== Pencarian + filter role =====
+            var search = document.getElementById('user-search');
+            var roleFilter = document.getElementById('role-filter');
+            var rows = Array.prototype.slice.call(document.querySelectorAll('.js-row'));
+            var noResult = document.getElementById('no-result');
+            var visibleCount = document.getElementById('visible-count');
 
-            search.addEventListener('input', () => {
-                const q = search.value.trim().toLowerCase();
-                let shown = 0;
-                rows.forEach(row => {
-                    const match = row.dataset.search.includes(q);
+            function applyFilter() {
+                var q = search.value.trim().toLowerCase();
+                var role = roleFilter.value;
+                var shown = 0;
+
+                rows.forEach(function(row) {
+                    var matchText = row.dataset.search.indexOf(q) !== -1;
+                    var matchRole = role === 'all' || row.dataset.role === role;
+                    var match = matchText && matchRole;
                     row.classList.toggle('is-hidden', !match);
-                    if (match) {
-                        shown++;
-                        // animasi ulang agar hasil terasa "hidup"
-                        row.style.animation = 'none';
-                        void row.offsetWidth;
-                        row.style.animation = '';
-                        row.style.animationDelay = (shown * 30) + 'ms';
-                    }
+                    if (match) shown++;
                 });
+
                 visibleCount.textContent = shown;
                 noResult.classList.toggle('hidden', shown !== 0 || rows.length === 0);
-            });
+            }
 
-            // ===== Modal hapus (kirim DELETE lewat form + CSRF) =====
-            const modal = document.getElementById('delete-modal');
-            const nameEl = document.getElementById('delete-name');
-            const deleteForm = document.getElementById('delete-form');
-            const confirmBtn = document.getElementById('delete-confirm');
-            const cancelBtn = document.getElementById('delete-cancel');
+            search.addEventListener('input', applyFilter);
+            roleFilter.addEventListener('change', applyFilter);
 
-            function openModal(action, name) {
+            // ===== Dialog hapus (DELETE dikirim lewat form + CSRF) =====
+            var dialog = document.getElementById('delete-dialog');
+            var nameEl = document.getElementById('delete-name');
+            var deleteForm = document.getElementById('delete-form');
+            var confirmBtn = document.getElementById('delete-confirm');
+            var cancelBtn = document.getElementById('delete-cancel');
+            var confirmLabel = confirmBtn.textContent;
+
+            function resetConfirm() {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = confirmLabel;
+            }
+
+            function openDialog(action, name) {
                 nameEl.textContent = name;
                 deleteForm.action = action;
-                modal.classList.add('is-open');
-                modal.setAttribute('aria-hidden', 'false');
+                resetConfirm();
+                if (typeof dialog.showModal === 'function') {
+                    dialog.showModal();
+                } else {
+                    // Cadangan untuk browser lama yang belum mendukung <dialog>
+                    if (window.confirm('Hapus akun ' + name + '? Tindakan ini tidak bisa dibatalkan.')) {
+                        deleteForm.submit();
+                    }
+                    return;
+                }
                 cancelBtn.focus();
             }
 
-            function closeModal() {
-                modal.classList.remove('is-open');
-                modal.setAttribute('aria-hidden', 'true');
-            }
-
-            document.querySelectorAll('.js-delete').forEach(btn => {
-                btn.addEventListener('click', () => openModal(btn.dataset.action, btn.dataset.name));
+            document.querySelectorAll('.js-delete').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    openDialog(btn.dataset.action, btn.dataset.name);
+                });
             });
-            cancelBtn.addEventListener('click', closeModal);
-            deleteForm.addEventListener('submit', () => {
+
+            cancelBtn.addEventListener('click', function() {
+                dialog.close();
+            });
+
+            // Klik di area gelap (backdrop) menutup dialog
+            dialog.addEventListener('click', function(e) {
+                if (e.target === dialog) dialog.close();
+            });
+
+            deleteForm.addEventListener('submit', function() {
                 confirmBtn.disabled = true;
                 confirmBtn.textContent = 'Menghapus...';
             });
-            modal.addEventListener('click', e => {
-                if (e.target === modal) closeModal();
-            });
-            document.addEventListener('keydown', e => {
-                if (e.key === 'Escape') closeModal();
+
+            // Tombol "Back" browser: pastikan tombol tidak tertinggal dalam keadaan "Menghapus..."
+            window.addEventListener('pageshow', function() {
+                resetConfirm();
+                if (dialog.open) dialog.close();
             });
         })();
     </script>

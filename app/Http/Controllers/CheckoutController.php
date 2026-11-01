@@ -13,9 +13,36 @@ use Illuminate\View\View;
 
 class CheckoutController extends Controller
 {
-    private const TAX_RATE = 0.11;
+    /** Dipakai hanya kalau "Pajak (%)" di halaman Settings kosong atau tidak valid. */
+    private const DEFAULT_TAX_PERCENT = 11.0;
 
     private const CLOSED_MESSAGE = 'Maaf, cafe kami sedang tutup. Silakan pesan kembali saat cafe sudah buka.';
+
+    private const NO_PAYMENT_MESSAGE = 'Maaf, saat ini belum ada metode pembayaran yang tersedia. Silakan hubungi kasir.';
+
+    private const PAYMENT_UNAVAILABLE_MESSAGE = 'Metode pembayaran yang kamu pilih sedang tidak tersedia. Muat ulang halaman lalu pilih metode lain.';
+
+    /**
+     * Metode pembayaran => nama pengaturan di halaman Settings admin.
+     *   cash     = "Bayar di Kasir (Cash)"
+     *   qris     = "QRIS / E-Wallet"
+     *   transfer = "Transfer Bank" (di halaman checkout tampil sebagai Debit / Kredit)
+     */
+    private const PAYMENT_SETTINGS = [
+        'cash'     => 'pay_cash',
+        'qris'     => 'pay_qris',
+        'transfer' => 'pay_transfer',
+    ];
+
+    /**
+     * Kata kunci untuk mengenali metode dari teks yang dikirim halaman checkout.
+     * Kalau nanti ada nama bank/metode baru, tambahkan di sini.
+     */
+    private const PAYMENT_KEYWORDS = [
+        'cash'     => ['cash', 'tunai'],
+        'qris'     => ['qris', 'e-wallet', 'ewallet'],
+        'transfer' => ['transfer', 'debit', 'kredit', 'credit', 'bank', 'bca', 'mandiri', 'bri', 'bni', 'visa', 'mastercard'],
+    ];
 
     public function index(): View|RedirectResponse
     {
@@ -25,7 +52,20 @@ class CheckoutController extends Controller
                 ->with('error', self::CLOSED_MESSAGE);
         }
 
-        return view('cart.checkout');
+        $enabledMethods = $this->enabledPaymentMethods();
+
+        if ($enabledMethods === []) {
+            return redirect()
+                ->route('home')
+                ->with('error', self::NO_PAYMENT_MESSAGE);
+        }
+
+        return view('cart.checkout', [
+            // Contoh isi: ['cash', 'transfer']
+            'enabledMethods' => $enabledMethods,
+            // Contoh isi: 11 atau 10.5 (diatur di halaman Settings)
+            'taxPercentage' => $this->taxPercentage(),
+        ]);
     }
 
     public function process(Request $request): JsonResponse
@@ -47,6 +87,16 @@ class CheckoutController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
+        // Metode pembayaran harus sesuai pengaturan admin (cek di server, bukan hanya di tampilan)
+        $methodKey = $this->resolvePaymentMethod($data['payment_method']);
+
+        if ($methodKey === null || ! in_array($methodKey, $this->enabledPaymentMethods(), true)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => self::PAYMENT_UNAVAILABLE_MESSAGE,
+            ], 422);
+        }
+
         // Harga SELALU diambil dari database, bukan dari browser (browser bisa dimanipulasi)
         $ids = collect($data['cart'])->pluck('id')->unique()->all();
         $menus = Menu::whereIn('id', $ids)->get()->keyBy('id');
@@ -58,7 +108,10 @@ class CheckoutController extends Controller
             ], 422);
         }
 
-        $order = DB::transaction(function () use ($data, $menus): ?Order {
+        // Pajak diambil dari Settings (bukan dari browser)
+        $taxRate = $this->taxPercentage() / 100;
+
+        $order = DB::transaction(function () use ($data, $menus, $taxRate): ?Order {
             if (! $this->storeIsOpen(true)) {
                 return null;
             }
@@ -68,7 +121,7 @@ class CheckoutController extends Controller
 
             foreach ($data['cart'] as $row) {
                 $menu = $menus[$row['id']];
-                $lineTotal = (float) $menu->price * $row['qty']; // Diperbaiki dari tanda minus (-) ke asterisk (*)
+                $lineTotal = (float) $menu->price * $row['qty'];
                 $subtotal += $lineTotal;
 
                 $lines[] = [
@@ -78,7 +131,7 @@ class CheckoutController extends Controller
                 ];
             }
 
-            $tax = round($subtotal * self::TAX_RATE); // Diperbaiki dari tanda minus (-) ke asterisk (*)
+            $tax = round($subtotal * $taxRate);
 
             $order = Order::create([
                 'customer_name' => $data['customer_name'],
@@ -112,8 +165,8 @@ class CheckoutController extends Controller
     public function success(Order $order): View
     {
         $order->load('items.menu', 'review');
-        $subtotal = $order->items->sum(fn ($item): float => (float) $item->price * $item->quantity); // Diperbaiki
-        
+        $subtotal = $order->items->sum(fn ($item): float => (float) $item->price * $item->quantity);
+
         $orderItems = $order->items->map(fn ($item): array => [
             'menu_id' => $item->menu_id,
             'name' => $item->menu?->name ?? 'Menu tidak tersedia',
@@ -129,7 +182,7 @@ class CheckoutController extends Controller
                 'payment_method' => $order->payment_method,
                 'total' => $order->total_price,
                 'subtotal' => $subtotal,
-                'tax' => (float) $order->total_price - $subtotal, // Diperbaiki dari minus yang salah posisi
+                'tax' => (float) $order->total_price - $subtotal,
                 'payment_status' => 'pending',
                 'created_at' => $order->created_at?->toDateTimeString(),
             ],
@@ -212,5 +265,65 @@ class CheckoutController extends Controller
         }
 
         return $setting->value('value') !== 'closed';
+    }
+
+    /**
+     * Persentase pajak dari halaman Settings (kolom "Pajak (%)"), mis. 11 atau 10.5.
+     * Kosong atau tidak valid memakai DEFAULT_TAX_PERCENT; hasil dibatasi 0 sampai 100.
+     */
+    private function taxPercentage(): float
+    {
+        $value = Setting::query()->where('key', 'tax_percentage')->value('value');
+
+        if ($value === null || ! is_numeric(trim((string) $value))) {
+            return self::DEFAULT_TAX_PERCENT;
+        }
+
+        return max(0.0, min(100.0, (float) $value));
+    }
+
+    /**
+     * Daftar metode pembayaran yang diaktifkan admin, mis. ['cash', 'transfer'].
+     * Pengaturan yang belum pernah disimpan dianggap aktif, supaya checkout
+     * tidak tiba-tiba kosong sebelum admin membuka halaman Settings.
+     *
+     * @return list<string>
+     */
+    private function enabledPaymentMethods(): array
+    {
+        $settings = Setting::query()
+            ->whereIn('key', array_values(self::PAYMENT_SETTINGS))
+            ->pluck('value', 'key');
+
+        $enabled = [];
+
+        foreach (self::PAYMENT_SETTINGS as $method => $settingKey) {
+            $value = $settings->get($settingKey);
+
+            if ($value === null || filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                $enabled[] = $method;
+            }
+        }
+
+        return $enabled;
+    }
+
+    /**
+     * Ubah teks metode dari halaman checkout (mis. "Tunai (Cash)", "QRIS",
+     * "Debit / Kredit - BCA") menjadi kunci: cash, qris, atau transfer.
+     */
+    private function resolvePaymentMethod(string $raw): ?string
+    {
+        $text = mb_strtolower($raw);
+
+        foreach (self::PAYMENT_KEYWORDS as $method => $words) {
+            foreach ($words as $word) {
+                if (str_contains($text, $word)) {
+                    return $method;
+                }
+            }
+        }
+
+        return null;
     }
 }

@@ -1,3 +1,18 @@
+@php
+    // Metode yang diaktifkan admin (dikirim CheckoutController@index).
+    // Cadangan: kalau view dibuka tanpa variabel itu, tampilkan semua.
+    $enabledMethods = $enabledMethods ?? ['cash', 'qris', 'transfer'];
+
+    // Metode yang terpilih sejak awal = metode aktif pertama sesuai urutan tampilan
+    $defaultMethod =
+        collect(['cash', 'qris', 'transfer'])->first(fn($m) => in_array($m, $enabledMethods, true)) ?? 'cash';
+
+    // Persentase pajak dari Settings (dikirim CheckoutController@index). Cadangan: 11.
+    $taxPercentage = isset($taxPercentage) && is_numeric($taxPercentage) ? (float) $taxPercentage : 11.0;
+
+    // Untuk tampilan: 11 => "11", 10.5 => "10,5"
+    $taxLabel = rtrim(rtrim(number_format($taxPercentage, 2, ',', ''), '0'), ',');
+@endphp
 <!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 
@@ -403,88 +418,100 @@
                 <div class="rise d2 space-y-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
                     <h2 class="text-sm font-bold text-stone-700">Pilih metode pembayaran</h2>
 
-                    <!-- Tunai -->
-                    <label class="pay-opt">
-                        <div class="flex min-w-0 items-center gap-3">
-                            <span class="pay-ico" aria-hidden="true">💵</span>
-                            <div class="min-w-0">
-                                <p class="text-sm font-bold">Tunai (Cash)</p>
-                                <p class="text-xs leading-snug text-stone-500">Bayar langsung saat transaksi di
-                                    kasir/meja.</p>
+                    <!-- Tunai (aktif jika "Bayar di Kasir" dicentang di Settings) -->
+                    @if (in_array('cash', $enabledMethods, true))
+                        <label class="pay-opt">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <span class="pay-ico" aria-hidden="true">💵</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold">Tunai (Cash)</p>
+                                    <p class="text-xs leading-snug text-stone-500">Bayar langsung saat transaksi di
+                                        kasir/meja.</p>
+                                </div>
                             </div>
-                        </div>
-                        <input type="radio" name="payment_method" value="Tunai" checked class="sr-only"
-                            onclick="togglePaymentDetail('tunai')">
-                        <span class="radio-dot"></span>
-                    </label>
+                            <input type="radio" name="payment_method" value="Tunai"
+                                {{ $defaultMethod === 'cash' ? 'checked' : '' }} class="sr-only"
+                                onclick="togglePaymentDetail('tunai')">
+                            <span class="radio-dot"></span>
+                        </label>
+                    @endif
 
-                    <!-- QRIS -->
-                    <label class="pay-opt">
-                        <div class="flex min-w-0 items-center gap-3">
-                            <span class="pay-ico" aria-hidden="true">📱</span>
-                            <div class="min-w-0">
-                                <p class="text-sm font-bold">QRIS</p>
-                                <p class="text-xs leading-snug text-stone-500">Scan QR untuk m-banking / e-wallet
-                                    (GoPay, OVO, Dana, dll).</p>
+                    <!-- QRIS (aktif jika "QRIS / E-Wallet" dicentang di Settings) -->
+                    @if (in_array('qris', $enabledMethods, true))
+                        <label class="pay-opt">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <span class="pay-ico" aria-hidden="true">📱</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold">QRIS</p>
+                                    <p class="text-xs leading-snug text-stone-500">Scan QR untuk m-banking / e-wallet
+                                        (GoPay, OVO, Dana, dll).</p>
+                                </div>
                             </div>
-                        </div>
-                        <input type="radio" name="payment_method" value="QRIS" class="sr-only"
-                            onclick="togglePaymentDetail('qris')">
-                        <span class="radio-dot"></span>
-                    </label>
+                            <input type="radio" name="payment_method" value="QRIS"
+                                {{ $defaultMethod === 'qris' ? 'checked' : '' }} class="sr-only"
+                                onclick="togglePaymentDetail('qris')">
+                            <span class="radio-dot"></span>
+                        </label>
 
-                    <!-- Area Detail QRIS -->
-                    <div id="qrisDetail" class="collapse-panel">
-                        <div>
-                            <div class="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4 text-center">
-                                <p class="text-xs font-bold text-stone-700">Scan QR code di bawah dengan aplikasi
-                                    pembayaranmu:</p>
-                                <div class="relative inline-block max-w-full rounded-xl border bg-white p-2 shadow-sm">
-                                    <img src="{{ asset('uploads/menus/qr.jpeg') }}" alt="QRIS Code"
-                                        class="mx-auto h-52 w-52 max-w-full object-contain"
-                                        onerror="this.onerror=null; this.classList.add('hidden'); document.getElementById('qrisFallback').classList.remove('hidden'); document.getElementById('qrisFallback').classList.add('flex'); document.getElementById('scanLine').classList.add('hidden');">
-                                    <div id="qrisFallback"
-                                        class="hidden h-52 w-52 max-w-full items-center justify-center text-xs italic text-stone-400">
-                                        <span>QR belum tersedia.<br>Silakan minta kasir.</span>
+                        <!-- Area Detail QRIS -->
+                        <div id="qrisDetail" class="collapse-panel">
+                            <div>
+                                <div class="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4 text-center">
+                                    <p class="text-xs font-bold text-stone-700">Scan QR code di bawah dengan aplikasi
+                                        pembayaranmu:</p>
+                                    <div
+                                        class="relative inline-block max-w-full rounded-xl border bg-white p-2 shadow-sm">
+                                        <img src="{{ asset('uploads/menus/qr.jpeg') }}" alt="QRIS Code"
+                                            class="mx-auto h-52 w-52 max-w-full object-contain"
+                                            onerror="this.onerror=null; this.classList.add('hidden'); document.getElementById('qrisFallback').classList.remove('hidden'); document.getElementById('qrisFallback').classList.add('flex'); document.getElementById('scanLine').classList.add('hidden');">
+                                        <div id="qrisFallback"
+                                            class="hidden h-52 w-52 max-w-full items-center justify-center text-xs italic text-stone-400">
+                                            <span>QR belum tersedia.<br>Silakan minta kasir.</span>
+                                        </div>
+                                        <span id="scanLine" class="scan-line" aria-hidden="true"></span>
                                     </div>
-                                    <span id="scanLine" class="scan-line" aria-hidden="true"></span>
-                                </div>
-                                <p class="text-[11px] text-stone-500">Didukung: BCA, Mandiri, GoPay, OVO, DANA,
-                                    ShopeePay</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Debit / Kredit -->
-                    <label class="pay-opt">
-                        <div class="flex min-w-0 items-center gap-3">
-                            <span class="pay-ico" aria-hidden="true">💳</span>
-                            <div class="min-w-0">
-                                <p class="text-sm font-bold">Debit / Kredit</p>
-                                <p class="text-xs leading-snug text-stone-500">Gesek atau tap kartu di mesin EDC.</p>
-                            </div>
-                        </div>
-                        <input type="radio" name="payment_method" value="Debit / Kredit" class="sr-only"
-                            onclick="togglePaymentDetail('card')">
-                        <span class="radio-dot"></span>
-                    </label>
-
-                    <!-- Area Pilihan Bank -->
-                    <div id="cardDetail" class="collapse-panel">
-                        <div>
-                            <div class="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
-                                <p class="text-xs font-bold text-stone-700">Pilih jenis kartu / bank:</p>
-                                <div id="bankOptions" class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3"></div>
-
-                                <div id="bankInfo"
-                                    class="space-y-2 rounded-lg border border-stone-200 bg-white p-3 text-xs">
-                                    <p id="bankInfoText" class="text-stone-600"></p>
-                                    <a id="bankInfoLink" href="#" target="_blank" rel="noopener noreferrer"
-                                        class="inline-block font-bold text-brown hover:underline"></a>
+                                    <p class="text-[11px] text-stone-500">Didukung: BCA, Mandiri, GoPay, OVO, DANA,
+                                        ShopeePay</p>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    @endif
+
+                    <!-- Debit / Kredit (aktif jika "Transfer Bank" dicentang di Settings) -->
+                    @if (in_array('transfer', $enabledMethods, true))
+                        <label class="pay-opt">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <span class="pay-ico" aria-hidden="true">💳</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold">Debit / Kredit</p>
+                                    <p class="text-xs leading-snug text-stone-500">Gesek atau tap kartu di mesin EDC.
+                                    </p>
+                                </div>
+                            </div>
+                            <input type="radio" name="payment_method" value="Debit / Kredit"
+                                {{ $defaultMethod === 'transfer' ? 'checked' : '' }} class="sr-only"
+                                onclick="togglePaymentDetail('card')">
+                            <span class="radio-dot"></span>
+                        </label>
+
+                        <!-- Area Pilihan Bank -->
+                        <div id="cardDetail" class="collapse-panel">
+                            <div>
+                                <div class="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
+                                    <p class="text-xs font-bold text-stone-700">Pilih jenis kartu / bank:</p>
+                                    <div id="bankOptions" class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3"></div>
+
+                                    <div id="bankInfo"
+                                        class="space-y-2 rounded-lg border border-stone-200 bg-white p-3 text-xs">
+                                        <p id="bankInfoText" class="text-stone-600"></p>
+                                        <a id="bankInfoLink" href="#" target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="inline-block font-bold text-brown hover:underline"></a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="rise d3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
@@ -508,7 +535,7 @@
                         <span id="summarySubtotal">Rp 0</span>
                     </div>
                     <div class="flex justify-between text-cream/70">
-                        <span>Pajak (11%)</span>
+                        <span>Pajak ({{ $taxLabel }}%)</span>
                         <span id="summaryTax">Rp 0</span>
                     </div>
                     <div class="flex items-baseline justify-between border-t border-white/10 pt-3">
@@ -549,6 +576,8 @@
     </div>
 
     <script>
+        // Tarif pajak dari halaman Settings (hanya untuk tampilan; server menghitung ulang saat pesanan dikirim)
+        const TAX_RATE = @json($taxPercentage / 100);
         const cartData = JSON.parse(localStorage.getItem('brewNestCart')) || [];
         const rupiah = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
         const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({
@@ -615,7 +644,7 @@
                     </div>`;
             });
 
-            const tax = subtotal * 0.11;
+            const tax = Math.round(subtotal * TAX_RATE);
             const grandTotal = subtotal + tax;
 
             container.innerHTML = html;
@@ -668,6 +697,9 @@
 
         function renderBankOptions() {
             const wrap = document.getElementById('bankOptions');
+            // Panel bank tidak ada di halaman kalau metode Debit / Kredit dimatikan admin
+            if (!wrap) return;
+
             wrap.innerHTML = banks.map((b, i) => `
                 <label class="bank-opt">
                     <input type="radio" name="bank_option" value="${escapeHtml(b.value)}" class="sr-only"
@@ -680,8 +712,10 @@
         }
 
         function showBankInfo(index) {
-            const b = banks[index];
             const box = document.getElementById('bankInfo');
+            if (!box) return;
+
+            const b = banks[index];
             document.getElementById('bankInfoText').textContent = b.info;
             const link = document.getElementById('bankInfoLink');
             link.href = b.url;
@@ -694,11 +728,27 @@
 
         renderBankOptions();
 
-        // Tampilkan detail pembayaran dinamis (QRIS / kartu) dengan animasi buka-tutup
+        // Tampilkan detail pembayaran dinamis (QRIS / kartu) dengan animasi buka-tutup.
+        // Panel yang tidak dirender (metode dimatikan admin) dilewati agar tidak error.
         function togglePaymentDetail(type) {
-            document.getElementById('qrisDetail').classList.toggle('open', type === 'qris');
-            document.getElementById('cardDetail').classList.toggle('open', type === 'card');
+            const qris = document.getElementById('qrisDetail');
+            const card = document.getElementById('cardDetail');
+            if (qris) qris.classList.toggle('open', type === 'qris');
+            if (card) card.classList.toggle('open', type === 'card');
         }
+
+        // Saat halaman dibuka, sesuaikan panel dengan metode yang terpilih
+        // (metode default bisa QRIS / Debit kalau Tunai dimatikan admin)
+        (function syncInitialPayment() {
+            const checked = document.querySelector('input[name="payment_method"]:checked');
+            if (!checked) return;
+            const map = {
+                'Tunai': 'tunai',
+                'QRIS': 'qris',
+                'Debit / Kredit': 'card'
+            };
+            togglePaymentDetail(map[checked.value] || 'tunai');
+        })();
 
         function submitOrder() {
             // Ada 2 tombol bayar (desktop & bar HP), keduanya dikendalikan bersamaan
@@ -715,7 +765,13 @@
                 return;
             }
 
-            let selectedPayment = document.querySelector('input[name="payment_method"]:checked').value;
+            const paymentInput = document.querySelector('input[name="payment_method"]:checked');
+            if (!paymentInput) {
+                showToast('Pilih metode pembayaran dulu.');
+                return;
+            }
+
+            let selectedPayment = paymentInput.value;
 
             // Jika metode pembayaran kartu, tambahkan detail bank yang dipilih
             if (selectedPayment === 'Debit / Kredit') {
