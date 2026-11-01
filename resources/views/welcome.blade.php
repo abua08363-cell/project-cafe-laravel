@@ -18,8 +18,10 @@
     $taxPercent = (float) $s('tax_percentage', 11);
     $taxLabel = rtrim(rtrim(number_format($taxPercent, 2, '.', ''), '0'), '.');
 
-    // Logo kedai (public/kopi.jpeg, sama dengan ikon tab browser)
-    $hasLogo = is_file(public_path('kopi.jpeg'));
+    // URL peta (otomatis ikut alamat dari Admin > Settings)
+    $mapQuery = urlencode((string) $storeAddress);
+    $mapEmbedUrl = 'https://www.google.com/maps?q=' . $mapQuery . '&hl=id&z=16&output=embed';
+    $mapOpenUrl = 'https://www.google.com/maps/search/?api=1&query=' . $mapQuery;
 
     // Mendukung array maupun Eloquent model / stdClass
     $toArr = fn($row) => is_array($row) ? $row : (method_exists($row, 'toArray') ? $row->toArray() : (array) $row);
@@ -551,7 +553,7 @@
             transform: scale(1.06);
         }
 
-        /* Footer link geser */
+        /* Footer link geser (hanya daftar tautan, tidak ikut tombol peta) */
         footer ul a {
             display: inline-block;
             transition: transform .25s ease, color .25s ease;
@@ -1298,13 +1300,24 @@
 
             <div class="col-span-2 lg:col-span-1">
                 <h4 class="mb-4 text-xs font-bold text-white">Hubungi Kami</h4>
+
+                @php
+                    // Nomor WhatsApp: 0857... -> 62857...
+                    $waNumber = preg_replace('/\D/', '', (string) $storePhone);
+                    if (str_starts_with($waNumber, '0')) {
+                        $waNumber = '62' . substr($waNumber, 1);
+                    }
+                @endphp
+
                 <ul class="space-y-3 text-xs">
                     <li class="flex gap-2"><svg class="ic mt-0.5 h-3.5 w-3.5">
                             <use href="#i-pin" />
                         </svg><span>{{ $storeAddress }}</span></li>
                     <li class="flex gap-2"><svg class="ic mt-0.5 h-3.5 w-3.5">
                             <use href="#i-phone" />
-                        </svg><a href="tel:{{ $phoneHref }}" class="hover:text-tan">{{ $storePhone }}</a></li>
+                        </svg><a
+                            href="https://wa.me/{{ $waNumber }}?text={{ urlencode('Halo ' . $storeName . ', saya mau tanya...') }}"
+                            target="_blank" rel="noopener" class="hover:text-tan">{{ $storePhone }}</a></li>
                     <li class="flex gap-2"><svg class="ic mt-0.5 h-3.5 w-3.5">
                             <use href="#i-mail" />
                         </svg><a href="mailto:{{ $storeEmail }}" class="hover:text-tan">{{ $storeEmail }}</a>
@@ -1315,18 +1328,18 @@
                 </ul>
             </div>
 
-            <!-- Logo kedai (menggantikan form newsletter) -->
+            <!-- Peta lokasi (menggantikan logo) -->
             <div class="col-span-2 flex flex-col items-start lg:col-span-1 lg:items-end">
-                <div class="grid h-28 w-28 place-items-center overflow-hidden rounded-2xl bg-paper p-1.5 shadow-lg shadow-black/30 ring-1 ring-caramel/40"
-                    role="img" aria-label="Logo {{ $storeName }}">
-                    @if ($hasLogo)
-                        <img src="{{ asset('kopi.jpeg') }}" alt="" data-fb="1" loading="lazy"
-                            class="h-full w-full rounded-xl object-cover"
-                            onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
-                    @endif
-                    <svg class="ic {{ $hasLogo ? 'hidden' : '' }} h-12 w-12 text-coffee">
-                        <use href="#i-coffee" />
-                    </svg>
+                <div
+                    class="relative h-44 w-full overflow-hidden rounded-2xl bg-paper shadow-lg shadow-black/30 ring-1 ring-caramel/40 lg:max-w-[22rem]">
+                    <iframe title="Lokasi {{ $storeName }}" src="{{ $mapEmbedUrl }}"
+                        class="h-full w-full border-0" loading="lazy" allowfullscreen
+                        referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+                    <a href="{{ $mapOpenUrl }}" target="_blank" rel="noopener"
+                        class="absolute left-2 top-2 rounded-md bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-600 shadow transition hover:bg-stone-100">
+                        Buka di Maps ↗
+                    </a>
                 </div>
                 <p class="mt-3 font-display text-sm italic text-tan lg:text-right">Good Coffee, Good Vibes</p>
             </div>
